@@ -1,0 +1,685 @@
+﻿<Window x:Class="Adoracion.Main"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Adoracion"
+        xmlns:models="clr-namespace:Adoracion.Models"
+        xmlns:conv="clr-namespace:Adoracion.Converters"
+        xmlns:services="clr-namespace:Adoracion.Services"
+        xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
+        Title="{Binding [Title_Main], Source={x:Static services:LocalizationService.Instance}}" Height="700" Width="1200" WindowState="Normal" Loaded="Window_Loaded"
+        PreviewKeyDown="Window_PreviewKeyDown" Background="Transparent"
+        Foreground="{DynamicResource TextLight}"
+        WindowStyle="None" AllowsTransparency="True" ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <!-- Style for the Root Border to handle rounded corners -->
+        <Style x:Key="RootBorderStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Background" Value="{DynamicResource BackgroundDark}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Primary}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMaximizedView, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                    <Setter Property="CornerRadius" Value="0"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Style for the Header to round top corners -->
+        <Style x:Key="HeaderBorderStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="9,9,0,0"/>
+            <Setter Property="Background" Value="{DynamicResource ItemBackground}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMaximizedView, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                    <Setter Property="CornerRadius" Value="0"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Style for the Footer to round bottom corners -->
+        <Style x:Key="FooterBorderStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="0,0,9,9"/>
+            <Setter Property="Background" Value="{DynamicResource ItemBackground}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMaximizedView, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                    <Setter Property="CornerRadius" Value="0"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <local:FileNameWithoutExtensionConverter x:Key="FileNameConverter"/>
+        <conv:BoolToBrushConverter x:Key="BoolToBrushConverter"/>
+        <conv:BoolToTranslationConverter x:Key="BoolToTranslationConverter"/>
+
+        <!-- Style ScrollBar -->
+        <Style x:Key="ScrollThumb" TargetType="{x:Type Thumb}">
+            <Setter Property="OverridesDefaultStyle" Value="true"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Thumb}">
+                        <Rectangle x:Name="rect" Fill="{DynamicResource TextSecondary}" RadiusX="4" RadiusY="4" Margin="4"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="true">
+                                <Setter TargetName="rect" Property="Fill" Value="{DynamicResource Primary}"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="True">
+                                <Setter TargetName="rect" Property="Margin" Value="2"/>
+                                <Setter TargetName="rect" Property="RadiusX" Value="6"/>
+                                <Setter TargetName="rect" Property="RadiusY" Value="6"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type ScrollViewer}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollViewer}">
+                        <Grid Background="{TemplateBinding Background}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ScrollContentPresenter x:Name="PART_ScrollContentPresenter" Grid.Column="0" Grid.Row="0" Margin="{TemplateBinding Padding}" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" CanContentScroll="{TemplateBinding CanContentScroll}"/>
+                            <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Column="1" Grid.Row="0" Orientation="Vertical" ViewportSize="{TemplateBinding ViewportHeight}" Minimum="0" Maximum="{TemplateBinding ScrollableHeight}" Value="{Binding VerticalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}" Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                            <ScrollBar x:Name="PART_HorizontalScrollBar" Grid.Column="0" Grid.Row="1" Orientation="Horizontal" ViewportSize="{TemplateBinding ViewportWidth}" Minimum="0" Maximum="{TemplateBinding ScrollableWidth}" Value="{Binding HorizontalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}" Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+                            <Rectangle Grid.Column="1" Grid.Row="1" Fill="Transparent"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type ScrollBar}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollBar}">
+                        <Grid Background="{TemplateBinding Background}">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton x:Name="PageUp" Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource ScrollThumb}"/>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton x:Name="PageDown" Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Orientation" Value="Horizontal">
+                                <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+                                <Setter TargetName="PageUp" Property="Command" Value="ScrollBar.PageLeftCommand"/>
+                                <Setter TargetName="PageDown" Property="Command" Value="ScrollBar.PageRightCommand"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Orientation" Value="Vertical">
+                    <Setter Property="Width" Value="12"/>
+                </Trigger>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Height" Value="12"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Modern ComboBox Style to match Search Input -->
+        <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource ItemBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextLight}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ItemBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,0,10,0"/>
+            <Setter Property="MinHeight" Value="35"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <!-- ToggleButton handles the click to open/close -->
+                            <ToggleButton x:Name="ToggleButton"
+                                          Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Focusable="False"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="border"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="8"/>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource Primary}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <DockPanel Margin="{TemplateBinding Padding}" IsHitTestVisible="False">
+                                <Path x:Name="LeadingIcon" 
+                                      DockPanel.Dock="Left" 
+                                      Data="{TemplateBinding Tag}"
+                                      Fill="{DynamicResource TextSecondary}"
+                                      Width="16" Height="16"
+                                      Stretch="Uniform"
+                                      VerticalAlignment="Center"
+                                      Margin="0,0,10,0"/>
+                                <Path DockPanel.Dock="Right"
+                                      Data="{StaticResource ExpandMoreIcon}"
+                                      Fill="{DynamicResource TextSecondary}"
+                                      Width="10" Height="10"
+                                      Stretch="Uniform"
+                                      VerticalAlignment="Center"
+                                      Margin="5,0,0,0"/>
+                                <ContentPresenter IsHitTestVisible="False"
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                            </DockPanel>
+                            <Popup x:Name="PART_Popup"
+                                   AllowsTransparency="True"
+                                   Placement="Bottom"
+                                   IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Focusable="False"
+                                   PopupAnimation="Slide">
+                                <Border x:Name="DropDownBorder"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                        Background="{DynamicResource BackgroundDark}"
+                                        BorderBrush="{DynamicResource ItemBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Margin="0,4,0,4">
+                                    <ScrollViewer Margin="4" SnapsToDevicePixels="True">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Style="{StaticResource RootBorderStyle}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <!-- Header -->
+                <RowDefinition Height="*"/>
+                <!-- Main Content -->
+                <RowDefinition Height="20.333"/>
+                <RowDefinition Height="171.667"/>
+                <!-- Footer -->
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" Style="{StaticResource HeaderBorderStyle}" Height="60" MouseLeftButtonDown="DragMove_Handler">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition Width="Auto" MinWidth="377"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,61,0" Height="40">
+                        <Path Fill="{DynamicResource Primary}" Data="{StaticResource AppIcon}" Width="40" Height="40" Stretch="Uniform"/>
+                        <TextBlock Text="Adoracion" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource Primary}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Height="40" Width="367" HorizontalAlignment="Right">
+                        <ComboBox x:Name="MonitorComboBox" Width="213" Height="36" Margin="0,0,10,0" Tag="{StaticResource MonitorIcon}" Style="{StaticResource ModernComboBoxStyle}"/>
+                        <Button x:Name="SettingsButton" Width="40" Height="40" Click="SettingsButton_Click" Style="{DynamicResource PlayerControlButton}">
+                            <Path Data="{StaticResource SettingsIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="24" Height="24"/>
+                        </Button>
+                        <Button x:Name="MinimizeButton" Width="32" Height="32" Click="MinimizeButton_Click" Style="{DynamicResource PlayerControlButton}">
+                            <Path Data="{StaticResource MinimizeIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="18" Height="18"/>
+                        </Button>
+                        <Button x:Name="MaximizeButton" Width="32" Height="32" Click="MaximizeButton_Click" Style="{DynamicResource PlayerControlButton}">
+                            <Path Data="{StaticResource MaximizeIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform"/>
+                        </Button>
+                        <Button x:Name="CloseButton" Width="32" Height="32" Click="CloseButton_Click" Style="{DynamicResource PlayerControlButton}">
+                            <Path Data="{StaticResource CloseIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Main Content -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="520"/>
+                    <!-- Left Sidebar -->
+                    <ColumnDefinition Width="*"/>
+                    <!-- Center Area -->
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Sidebar: Media Library -->
+                <Grid Grid.Column="0">
+                    <DockPanel Background="{DynamicResource ItemBackground}" Margin="0,0,0,-55">
+                        <StackPanel DockPanel.Dock="Top" Margin="10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="17*"/>
+                                    <ColumnDefinition Width="83*"/>
+                                </Grid.ColumnDefinitions>
+                                <TabControl x:Name="LibraryTabs" SelectionChanged="LibraryTabs_SelectionChanged" VerticalAlignment="Top" Margin="0,-15,0,0" Grid.ColumnSpan="2">
+                                    <!-- Dynamic tabs generated in code-behind -->
+                                </TabControl>
+                                <Button x:Name="AddTabButton" Click="AddTabButton_Click"
+                                        Style="{DynamicResource PlayerControlButton}"
+                                        HorizontalAlignment="Right" VerticalAlignment="Top"
+                                        Width="32" Height="32" Margin="0,-10,4,0" Visibility="Collapsed" Grid.Column="1">
+                                    <Path Data="{StaticResource AddIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="14" Height="14" Stretch="Uniform"/>
+                                </Button>
+                            </Grid>
+                            <Grid Margin="0,0,0,10">
+                                <TextBox x:Name="FolderFilterBox" 
+                                         Text="Search library..." 
+                                         Padding="38,10,32,10"
+                                         Foreground="{DynamicResource TextSecondary}"
+                                         TextChanged="FolderFilterBox_TextChanged"
+                                         KeyDown="FolderFilterBox_KeyDown"
+                                         GotFocus="FolderFilterBox_GotFocus"
+                                         LostFocus="FolderFilterBox_LostFocus" Margin="0,-6,0,0"/>
+                                <Path Data="{StaticResource SearchIcon}" 
+                                      Fill="{DynamicResource TextSecondary}" 
+                                      Width="16" Height="16" 
+                                      Stretch="Uniform" 
+                                      HorizontalAlignment="Left" 
+                                      Margin="15,-6,0,0" 
+                                      IsHitTestVisible="False"/>
+                                <Button x:Name="ClearFilterButton" Click="ClearFilter_Click"
+                                        Style="{DynamicResource PlayerControlButton}"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center"
+                                        Width="24" Height="24" Margin="0,-6,8,0">
+                                    <Path Data="{StaticResource CloseIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="10" Height="10" Stretch="Uniform"/>
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                        <Grid Margin="20,-8,10,8">
+                            <ListBox x:Name="FolderExplorer" Margin="-10,0,0,0" PreviewMouseDoubleClick="FolderExplorer_MouseDoubleClick" 
+                                     Background="{DynamicResource ItemBackground}" Foreground="{DynamicResource TextLight}" BorderThickness="0" 
+                                     ItemContainerStyle="{DynamicResource SidebarItemStyle}"
+                                     HorizontalContentAlignment="Stretch"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     VirtualizingPanel.IsVirtualizing="True"
+                                     VirtualizingPanel.VirtualizationMode="Recycling"
+                                     ScrollViewer.CanContentScroll="True">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="22"/>
+                                                <!-- Fixed width for Add -->
+                                                <ColumnDefinition Width="30"/>
+                                                <!-- Fixed width for Play + Margin -->
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="32"/>
+                                                <!-- Fixed width for Remove -->
+                                            </Grid.ColumnDefinitions>
+                                            <Button x:Name="LibraryAddButton" Grid.Column="0" Click="LibraryAddButton_Click" Style="{DynamicResource PlayerControlButton}" Width="28" Height="28" Margin="0,0,0,0" ToolTip="Add to Playlist" HorizontalAlignment="Left">
+                                                <Path Data="{StaticResource AddIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform"/>
+                                            </Button>
+                                            <Button x:Name="LibraryPlayButton" Grid.Column="1" Click="LibraryPlayButton_Click" Style="{DynamicResource PlayerControlButton}" Width="28" Height="28" Margin="0,0,2,0" ToolTip="Play Now" HorizontalAlignment="Left">
+                                                <Path Data="{StaticResource PlayArrowIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform" Margin="2,0,0,0"/>
+                                            </Button>
+                                            <Grid Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Center" ToolTip="{Binding}" ClipToBounds="True" Margin="0,0,5,0">
+                                                <Grid.OpacityMask>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                        <GradientStop Color="Black" Offset="0"/>
+                                                        <GradientStop Color="Black" Offset="0.94"/>
+                                                        <GradientStop Color="Transparent" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Grid.OpacityMask>
+                                                <TextBlock Text="{Binding}" VerticalAlignment="Center" FontSize="13" TextTrimming="None" TextWrapping="NoWrap"/>
+                                            </Grid>
+                                            <Button x:Name="LibraryRemoveButton" Grid.Column="3" Click="LibraryRemoveButton_Click" Style="{DynamicResource PlayerControlButton}" Width="28" Height="28" Margin="0,0,0,0" ToolTip="Remove Favorite" Visibility="Collapsed" HorizontalAlignment="Right">
+                                                <Path Data="{StaticResource CloseIcon}" Fill="{DynamicResource DeleteButtonRed}" Width="10" Height="10" Stretch="Uniform"/>
+                                            </Button>
+                                        </Grid>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedIndex, ElementName=LibraryTabs}" Value="1">
+                                                <Setter TargetName="LibraryRemoveButton" Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <!-- Empty State for Library -->
+                            <StackPanel x:Name="LibraryEmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Items.Count, ElementName=FolderExplorer}" Value="0">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <Path Width="48" Height="48" Stretch="Uniform" Opacity="0.2" Margin="0,0,0,15">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Setter Property="Fill" Value="{DynamicResource TextSecondary}"/>
+                                            <Setter Property="Data" Value="{StaticResource FolderOpenIcon}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedIndex, ElementName=LibraryTabs}" Value="1">
+                                                    <Setter Property="Data" Value="{StaticResource StarOutlineIcon}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <TextBlock x:Name="LibraryEmptyLabel" Foreground="{DynamicResource TextSecondary}" FontSize="13" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="220"/>
+                            </StackPanel>
+                        </Grid>
+                    </DockPanel>
+                </Grid>
+
+                <!-- Center Area: Playlist -->
+                <Grid Grid.ColumnSpan="2" Margin="518,0,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="221*"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Background="{DynamicResource ItemBackground}" Margin="0,0,0,-55" Grid.RowSpan="2">
+                        <!-- Playlist Header with Clear All Button -->
+                        <Grid DockPanel.Dock="Top" Margin="10,0,10,0" Height="32">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="10*"/>
+                                <RowDefinition Height="23*"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Orientation="Horizontal" Grid.RowSpan="2" Margin="0,0,0,-4">
+                                <Path Data="{StaticResource MusicNoteIcon}" Fill="{DynamicResource TextSecondary}" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                <Label x:Name="Label_Playlist" Content="{Binding [Label_Playlist], Source={x:Static services:LocalizationService.Instance}}" 
+                                       Foreground="{DynamicResource TextSecondary}" 
+                                       FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Button x:Name="OpenPlaylistButton" Click="OpenPlaylist_Click" ToolTip="{Binding [Tooltip_OpenPlaylist], Source={x:Static services:LocalizationService.Instance}}"
+                                        Style="{DynamicResource PlayerControlButton}" 
+                                        Width="28" Height="28" VerticalAlignment="Center" Margin="5,0,0,0">
+                                    <Path Data="{StaticResource FolderOpenIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="14" Height="14" Stretch="Uniform"/>
+                                </Button>
+                                <Button x:Name="SavePlaylistButton" Click="SavePlaylist_Click" ToolTip="{Binding [Tooltip_SavePlaylist], Source={x:Static services:LocalizationService.Instance}}"
+                                        Style="{DynamicResource PlayerControlButton}" 
+                                        Width="28" Height="28" VerticalAlignment="Center" Margin="5,0,0,0">
+                                    <Path Data="{StaticResource SaveIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="14" Height="14" Stretch="Uniform"/>
+                                </Button>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.RowSpan="2" Margin="0,0,0,-4">
+                                <CheckBox x:Name="CrossfadeToggle" 
+                                    Content="{Binding [Checkbox_Crossfade], Source={x:Static services:LocalizationService.Instance}}" 
+                                    ToolTip="{Binding [Tooltip_Crossfade], Source={x:Static services:LocalizationService.Instance}}"
+                                    Style="{DynamicResource PillCheckBoxStyle}" 
+                                    VerticalAlignment="Center" Margin="0,0,8,0"
+                                    Checked="CrossfadeToggle_Changed" Unchecked="CrossfadeToggle_Changed"/>
+                                <CheckBox x:Name="ShuffleToggle" 
+                                    Content="{Binding [Checkbox_Shuffle], Source={x:Static services:LocalizationService.Instance}}" 
+                                    ToolTip="{Binding [Tooltip_Shuffle], Source={x:Static services:LocalizationService.Instance}}"
+                                    Style="{DynamicResource PillCheckBoxStyle}" 
+                                    VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <Button x:Name="ClearPlaylistButton" 
+                                    Content="{Binding [Button_Clear_Playlist], Source={x:Static services:LocalizationService.Instance}}" 
+                                    ToolTip="{Binding [Tooltip_ClearPlaylist], Source={x:Static services:LocalizationService.Instance}}"
+                                    Style="{DynamicResource PillButtonStyle}" 
+                                    Click="ClearPlaylist_Click" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Margin="0,5,5,8">
+                            <ListView x:Name="PlaylistView"
+                            AllowDrop="True" 
+                            PreviewMouseLeftButtonDown="PlaylistView_PreviewMouseLeftButtonDown" 
+                            MouseMove="PlaylistView_MouseMove" 
+                            Drop="PlaylistView_Drop"
+                            DragOver="PlaylistView_DragOver"
+                            DragLeave="PlaylistView_DragLeave"
+                            VirtualizingPanel.IsVirtualizing="True"
+                            VirtualizingPanel.VirtualizationMode="Recycling"
+                            ScrollViewer.CanContentScroll="True" BorderThickness="1,1,1,1" Margin="5,0,0,0"
+                            SizeChanged="PlaylistView_SizeChanged">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem" BasedOn="{StaticResource PlaylistItemStyle}">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Primary}"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Style.Resources>
+                                            <!-- Smoothly animate the "Space" creation -->
+                                            <ExponentialEase x:Key="Ease" EasingMode="EaseOut" Exponent="5"/>
+                                        </Style.Resources>
+                                        <Style.Triggers>
+                                            <!-- Visual feedback for the item being dragged is handled via Opacity in code-behind -->
+                                            <DataTrigger Binding="{Binding IsMissing}" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource MissingBackground}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource MissingForeground}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="#" Width="40">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Grid HorizontalAlignment="Left" Width="30">
+                                                        <TextBlock x:Name="IndexText" Text="{Binding Index}" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListViewItem}}"/>
+                                                        <StackPanel x:Name="MiniVisualizer" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Height="12" Visibility="Collapsed" Margin="0,0,0,2">
+                                                            <Rectangle Width="3" Fill="{DynamicResource OnPrimary}" Margin="0,0.5,0,0.5" RadiusX="1" RadiusY="1">
+                                                                <Rectangle.Triggers>
+                                                                    <EventTrigger RoutedEvent="Loaded">
+                                                                        <BeginStoryboard>
+                                                                            <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                                <DoubleAnimation Storyboard.TargetProperty="Height" From="4" To="12" Duration="0:0:0.6"/>
+                                                                            </Storyboard>
+                                                                        </BeginStoryboard>
+                                                                    </EventTrigger>
+                                                                </Rectangle.Triggers>
+                                                            </Rectangle>
+                                                            <Rectangle Width="3" Fill="{DynamicResource OnPrimary}" Margin="0.5" RadiusX="1" RadiusY="1">
+                                                                <Rectangle.Triggers>
+                                                                    <EventTrigger RoutedEvent="Loaded">
+                                                                        <BeginStoryboard>
+                                                                            <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                                <DoubleAnimation Storyboard.TargetProperty="Height" From="2" To="10" Duration="0:0:0.4"/>
+                                                                            </Storyboard>
+                                                                        </BeginStoryboard>
+                                                                    </EventTrigger>
+                                                                </Rectangle.Triggers>
+                                                            </Rectangle>
+                                                            <Rectangle Width="3" Fill="{DynamicResource OnPrimary}" Margin="0.5" RadiusX="1" RadiusY="1">
+                                                                <Rectangle.Triggers>
+                                                                    <EventTrigger RoutedEvent="Loaded">
+                                                                        <BeginStoryboard>
+                                                                            <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                                <DoubleAnimation Storyboard.TargetProperty="Height" From="5" To="11" Duration="0:0:0.5"/>
+                                                                            </Storyboard>
+                                                                        </BeginStoryboard>
+                                                                    </EventTrigger>
+                                                                </Rectangle.Triggers>
+                                                            </Rectangle>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <DataTemplate.Triggers>
+                                                        <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                                                            <Setter TargetName="IndexText" Property="Visibility" Value="Collapsed"/>
+                                                            <Setter TargetName="MiniVisualizer" Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </DataTemplate.Triggers>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="{Binding [Label_Media_Name], Source={x:Static services:LocalizationService.Instance}}" Width="200">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Name, Converter={StaticResource FileNameConverter}}"/>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="{Binding [Label_MediaType], Source={x:Static services:LocalizationService.Instance}}" Width="52">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Path Width="16" Height="16" Stretch="Uniform" Fill="{DynamicResource TextSecondary}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Path.Style>
+                                                    <Style TargetType="Path">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Type}" Value="{x:Static models:MediaType.Audio}">
+                                                                <Setter Property="Data" Value="{StaticResource MusicNoteIcon}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Type}" Value="{x:Static models:MediaType.Video}">
+                                                                <Setter Property="Data" Value="{StaticResource ClapperboardIcon}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Type}" Value="{x:Static models:MediaType.Image}">
+                                                                <Setter Property="Data" Value="{StaticResource ImageIcon}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Type}" Value="{x:Static models:MediaType.Unknown}">
+                                                                <Setter Property="Data" Value="{StaticResource QuestionMarkIcon}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Path.Style>
+                                            </Path>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                        <GridViewColumn Header="{Binding [Label_Duration], Source={x:Static services:LocalizationService.Instance}}" DisplayMemberBinding="{Binding Duration}" Width="80"/>
+                                        <GridViewColumn Header="{Binding [Label_Actions], Source={x:Static services:LocalizationService.Instance}}" Width="70">
+                                            <GridViewColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Style="{DynamicResource PlayerControlButton}" 
+                                                        Click="ToggleFavorite_Click"
+                                                        Width="24" Height="24" Margin="0,0,5,0"
+                                                        ToolTip="{Binding IsFavorite, Converter={StaticResource BoolToTranslationConverter}, ConverterParameter='Tooltip_AddFavorite|Tooltip_RemoveFavorite'}">
+                                                            <Path x:Name="FavoriteStarPath"
+                                                          Fill="{Binding IsFavorite, Converter={StaticResource BoolToBrushConverter}, ConverterParameter='TextPrimary'}" 
+                                                          Stretch="Uniform" Width="12" Height="12"/>
+                                                        </Button>
+                                                        <Button Style="{DynamicResource PlayerControlButton}" 
+                                                        Click="RemovePlaylistItem_Click"
+                                                        Width="24" Height="24">
+                                                            <Path Data="{StaticResource CloseIcon}" 
+                                                          Fill="{DynamicResource TextPrimary}" 
+                                                          Stretch="Uniform" Width="10" Height="10"/>
+                                                        </Button>
+                                                    </StackPanel>
+                                                    <DataTemplate.Triggers>
+                                                        <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                                                            <Setter TargetName="FavoriteStarPath" Property="Data" Value="{StaticResource StarFilledIcon}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsFavorite}" Value="False">
+                                                            <Setter TargetName="FavoriteStarPath" Property="Data" Value="{StaticResource StarOutlineIcon}"/>
+                                                        </DataTrigger>
+                                                    </DataTemplate.Triggers>
+                                                </DataTemplate>
+                                            </GridViewColumn.CellTemplate>
+                                        </GridViewColumn>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+
+                            <!-- Empty State Label -->
+                            <StackPanel x:Name="PlaylistEmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False" Margin="0,50,0,0">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Items.Count, ElementName=PlaylistView}" Value="0">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <Path Data="{StaticResource MusicNoteIcon}" Fill="{DynamicResource TextSecondary}" Width="48" Height="48" Stretch="Uniform" Opacity="0.2" Margin="0,0,0,15"/>
+                                <TextBlock x:Name="PlaylistEmptyLabel" Text="{Binding [Label_PlaylistEmpty], Source={x:Static services:LocalizationService.Instance}}" Foreground="{DynamicResource TextSecondary}" FontSize="14" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="300"/>
+                            </StackPanel>
+                        </Grid>
+                    </DockPanel>
+                </Grid>
+            </Grid>
+
+            <!-- Footer: Player Controls -->
+            <Border Grid.Row="3" Style="{StaticResource FooterBorderStyle}" Margin="0,35,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: Metadata -->
+                    <StackPanel Grid.Column="0" VerticalAlignment="Top" Margin="30,41,0,0">
+                        <StackPanel VerticalAlignment="Bottom">
+                            <Border x:Name="DisplayInfoContainer" Width="120" HorizontalAlignment="Left" Height="65" VerticalAlignment="Bottom"
+                                BorderBrush="{DynamicResource ItemBorder}" BorderThickness="1" CornerRadius="8"
+                                Background="{DynamicResource DisplayInfoBackground}">
+                                <Grid>
+                                    <TextBlock x:Name="TimeLeftTextBlock" Margin="0,5,0,4" Text="{Binding [Time_Format], Source={x:Static services:LocalizationService.Instance}}" Foreground="{DynamicResource Primary}" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center"/>
+                                    <!-- Visualizer Section moved here -->
+                                    <StackPanel x:Name="VisualizerContainer" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center" Height="40" Margin="0,16,0,0">
+                                        <!-- Bars will be generated in code-behind -->
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Center: Controls -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center" Width="236">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Width="206" Margin="0,10,0,0">
+                            <Button x:Name="SkipPreviousButton" Click="SkipPreviousButton_Click" Style="{DynamicResource PlayerControlButton}">
+                                <Path Data="{StaticResource SkipPreviousIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            </Button>
+                            <Button x:Name="PlayPauseButton" Click="PlayPauseButton_Click" Style="{DynamicResource LargeRoundButton}" Margin="10,0,0,0">
+                                <Path x:Name="PlayPauseIconPath" Data="{StaticResource PlayArrowIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="{DynamicResource Size_PlayArrowIcon_W}" Height="{DynamicResource Size_PlayArrowIcon_H}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="3,0,0,0"/>
+                            </Button>
+                            <Button x:Name="StopButton" Click="StopButton_Click" Style="{DynamicResource PlayerControlButton}" Margin="10,0,0,0">
+                                <Path Data="{StaticResource StopIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            </Button>
+                            <Button x:Name="SkipNextButton" Click="SkipNextButton_Click" Style="{DynamicResource PlayerControlButton}" Margin="1,0,0,0">
+                                <Path Data="{StaticResource SkipNextIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Right: Volume & Extras -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,10,30,0">
+                        <Button x:Name="VolumeButton" Click="VolumeButton_Click" Style="{DynamicResource PlayerControlButton}">
+                            <Path x:Name="VolumeIconPath" Data="{StaticResource VolumeUpIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </Button>
+                        <Slider x:Name="VolumeSlider" ValueChanged="VolumeSlider_ValueChanged" Width="100" VerticalAlignment="Center" Value="100" Maximum="100" Style="{DynamicResource FlatSlider}" Height="14">
+                            <Slider.Resources>
+                                <Style TargetType="Thumb" BasedOn="{StaticResource SliderThumbStyle}"/>
+                            </Slider.Resources>
+                        </Slider>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            <Slider x:Name="ProgressSlider" Minimum="0" Maximum="100" Value="0" PreviewMouseLeftButtonDown="ProgressSlider_PreviewMouseLeftButtonDown" PreviewMouseLeftButtonUp="ProgressSlider_PreviewMouseLeftButtonUp" Style="{DynamicResource FlatSlider}" Grid.Row="3" Height="NaN" Margin="0,28,0,130">
+                <Slider.Resources>
+                    <Style TargetType="{x:Type Thumb}" BasedOn="{StaticResource SliderThumbStyle}"/>
+                </Slider.Resources>
+            </Slider>
+            <TextBlock x:Name="TrackTitleTextBlock" Text="" FontWeight="Bold" FontSize="16" Margin="30,47,30,100" Grid.Row="3" Height="25"/>
+        </Grid>
+    </Border>
+</Window>

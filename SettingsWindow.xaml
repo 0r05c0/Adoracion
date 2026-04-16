@@ -1,0 +1,659 @@
+<Window x:Class="Adoracion.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings" Height="800" Width="1200"
+        xmlns:converters="clr-namespace:Adoracion.Converters"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BackgroundDark}" 
+        Foreground="{DynamicResource TextPrimary}"
+        BorderThickness="0"
+        Loaded="Window_Loaded">
+    <Window.Resources>
+        <!-- ComboBox Style -->
+        <!-- Local combo style removed in favor of global themed ComboBox in Themes/DarkTheme.xaml -->
+
+        <!-- Button Style -->
+        <Style x:Key="ModernButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource Primary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnPrimary}"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="12">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.9"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.5"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Position Selector Style -->
+        <Style x:Key="PosButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0.5"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ItemBorder}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style ScrollBar -->
+        <Style x:Key="ScrollThumb" TargetType="{x:Type Thumb}">
+            <Setter Property="OverridesDefaultStyle" Value="true"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Thumb}">
+                        <Rectangle x:Name="rect" Fill="{DynamicResource TextSecondary}" RadiusX="4" RadiusY="4" Margin="4"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="true">
+                                <Setter TargetName="rect" Property="Fill" Value="{DynamicResource Primary}"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="True">
+                                <Setter TargetName="rect" Property="Margin" Value="2"/>
+                                <Setter TargetName="rect" Property="RadiusX" Value="6"/>
+                                <Setter TargetName="rect" Property="RadiusY" Value="6"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Style for Sidebar Icons to ensure they update with theme and hover -->
+        <Style x:Key="NavIconStyle" TargetType="Path">
+            <Setter Property="Fill" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+            <Setter Property="Stretch" Value="Uniform"/>
+            <Setter Property="Width" Value="16"/>
+            <Setter Property="Height" Value="16"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+        </Style>
+
+        <!-- Style for Theme Selector Boxes -->
+        <Style x:Key="ThemeSelectorBoxStyle" TargetType="Border">
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ItemBorder}"/>
+
+            <!-- Default state (unselected, representing the *other* theme) -->
+            <Setter Property="Background" Value="{DynamicResource OtherThemeBackground}"/>
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource OtherThemeTextPrimary}"/>
+            <Style.Resources>
+                <!-- These styles will apply to Path and TextBlock children of this Border -->
+                <Style TargetType="Path">
+                    <Setter Property="Fill" Value="{Binding (TextElement.Foreground), RelativeSource={RelativeSource AncestorType=Border}}"/>
+                </Style>
+                <Style TargetType="TextBlock">
+                    <Setter Property="Foreground" Value="{Binding (TextElement.Foreground), RelativeSource={RelativeSource AncestorType=Border}}"/>
+                </Style>
+            </Style.Resources>
+            <Style.Triggers>
+                <!-- Trigger for when this box represents the CURRENTLY ACTIVE theme -->
+                <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=Tag}" Value="Current">
+                    <Setter Property="Background" Value="{DynamicResource ItemBackground}"/>
+                    <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimary}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="{x:Type ScrollViewer}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollViewer}">
+                        <Grid Background="{TemplateBinding Background}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ScrollContentPresenter x:Name="PART_ScrollContentPresenter" Grid.Column="0" Grid.Row="0" Margin="{TemplateBinding Padding}" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" CanContentScroll="{TemplateBinding CanContentScroll}"/>
+                            <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Column="1" Grid.Row="0" Orientation="Vertical" ViewportSize="{TemplateBinding ViewportHeight}" Minimum="0" Maximum="{TemplateBinding ScrollableHeight}" Value="{Binding VerticalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}" Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                            <ScrollBar x:Name="PART_HorizontalScrollBar" Grid.Column="0" Grid.Row="1" Orientation="Horizontal" ViewportSize="{TemplateBinding ViewportWidth}" Minimum="0" Maximum="{TemplateBinding ScrollableWidth}" Value="{Binding HorizontalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}" Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"/>
+                            <Rectangle Grid.Column="1" Grid.Row="1" Fill="Transparent"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type ScrollBar}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollBar}">
+                        <Grid Background="{TemplateBinding Background}">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton x:Name="PageUp" Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource ScrollThumb}"/>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton x:Name="PageDown" Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Orientation" Value="Horizontal">
+                                <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+                                <Setter TargetName="PageUp" Property="Command" Value="ScrollBar.PageLeftCommand"/>
+                                <Setter TargetName="PageDown" Property="Command" Value="ScrollBar.PageRightCommand"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Orientation" Value="Vertical">
+                    <Setter Property="Width" Value="12"/>
+                </Trigger>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Height" Value="12"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Modern ComboBox Style to match Search Input -->
+        <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource ItemBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextLight}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ItemBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,0,10,0"/>
+            <Setter Property="MinHeight" Value="35"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <!-- ToggleButton handles the click to open/close -->
+                            <ToggleButton x:Name="ToggleButton"
+                                          Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Focusable="False"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="border"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="8"/>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource Primary}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <DockPanel Margin="{TemplateBinding Padding}" IsHitTestVisible="False">
+                                <Path x:Name="LeadingIcon" 
+                                      DockPanel.Dock="Left" 
+                                      Data="{TemplateBinding Tag}"
+                                      Fill="{DynamicResource TextSecondary}"
+                                      Width="16" Height="16"
+                                      Stretch="Uniform"
+                                      VerticalAlignment="Center"
+                                      Margin="0,0,10,0"/>
+                                <Path DockPanel.Dock="Right"
+                                      Data="{StaticResource ExpandMoreIcon}"
+                                      Fill="{DynamicResource TextSecondary}"
+                                      Width="10" Height="10"
+                                      Stretch="Uniform"
+                                      VerticalAlignment="Center"
+                                      Margin="5,0,0,0"/>
+                                <ContentPresenter IsHitTestVisible="False"
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                            </DockPanel>
+                            <Popup x:Name="PART_Popup"
+                                   AllowsTransparency="True"
+                                   Placement="Bottom"
+                                   IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Focusable="False"
+                                   PopupAnimation="Slide">
+                                <Border x:Name="DropDownBorder"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                        Background="{DynamicResource BackgroundDark}"
+                                        BorderBrush="{DynamicResource ItemBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Margin="0,4,0,4">
+                                    <ScrollViewer Margin="4" SnapsToDevicePixels="True">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="{DynamicResource BackgroundDark}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="288"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Sidebar Navigation -->
+        <Grid Grid.Column="0" Background="{DynamicResource ItemBackground}" VerticalAlignment="Stretch">
+            <StackPanel VerticalAlignment="Stretch">
+                <!-- Logo/Title -->
+                <StackPanel Margin="24,24,24,5" Height="60" VerticalAlignment="Top">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Path Data="{StaticResource AppIcon}" Fill="{DynamicResource Primary}" Stretch="Uniform" Width="32" Height="32" Margin="0,0,8,0"/>
+                        <TextBlock x:Name="LabelAdoracion" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock x:Name="LabelSettingsTitle" FontSize="10" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold"/>
+                </StackPanel>
+
+                <!-- Navigation Items -->
+                <StackPanel Margin="16,14,16,0">
+                    <!-- Media Folders -->
+                    <Button x:Name="NavMediaFolders" 
+                            Click="NavButton_Click"
+                            Style="{DynamicResource SettingsNavButtonStyle}" 
+                            Tag="Selected">
+                        <StackPanel Orientation="Horizontal" x:Name="NavMediaFoldersContent">
+                            <Path Data="{StaticResource FolderIcon}" Style="{StaticResource NavIconStyle}"/>
+                            <TextBlock VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Language -->
+                    <Button x:Name="NavLanguage" Click="NavButton_Click"
+                            Style="{DynamicResource SettingsNavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" x:Name="NavLanguageContent">
+                            <Path Data="{StaticResource LanguageIcon}" Style="{StaticResource NavIconStyle}"/>
+                            <TextBlock VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Screen Selection -->
+                    <Button x:Name="NavScreenSelection" Click="NavButton_Click"
+                            Style="{DynamicResource SettingsNavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" x:Name="NavScreenSelectionContent">
+                            <Path Data="{StaticResource MonitorIcon}" Style="{StaticResource NavIconStyle}"/>
+                            <TextBlock VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Appearance -->
+                    <Button x:Name="NavAppearance" Click="NavButton_Click"
+                            Style="{DynamicResource SettingsNavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" x:Name="NavAppearanceContent">
+                            <Path Data="M12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22M12,20V4C7.58,4 4,7.58 4,12C4,16.42 7.58,20 12,20Z" Style="{StaticResource NavIconStyle}"/>
+                            <TextBlock VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Text & Wallpaper -->
+                    <Button x:Name="NavTextWallpaper" Click="NavButton_Click"
+                            Style="{DynamicResource SettingsNavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" x:Name="NavTextWallpaperContent">
+                            <Path Data="{StaticResource PaletteIcon}" Style="{StaticResource NavIconStyle}"/>
+                            <TextBlock VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- About -->
+                    <Button x:Name="NavAbout" Click="NavButton_Click"
+                            Style="{DynamicResource SettingsNavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" x:Name="NavAboutContent">
+                            <Path Data="{StaticResource InfoIcon}" Style="{StaticResource NavIconStyle}"/>
+                            <TextBlock VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+
+        <!-- Right Content Area -->
+        <Grid Grid.Column="1" Background="{DynamicResource BackgroundDark}">
+            <!-- Close Button (Top Right) -->
+            <Button x:Name="CloseButton" Click="CloseButton_Click"
+                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Background="Transparent" BorderThickness="0"
+                    Foreground="{DynamicResource TextSecondary}"
+                    FontSize="18" Width="40" Height="40" Margin="0,12,32,0"
+                    Cursor="Hand"
+                    IsCancel="True">
+                <Path Data="{StaticResource CloseIcon}" Fill="{DynamicResource TextSecondary}" Stretch="Uniform" Width="14" Height="14"/>
+            </Button>
+
+            <!-- Content Stack -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="48,32,48,32" Background="{DynamicResource BackgroundDark}">
+                <StackPanel x:Name="ContentPanel">
+
+                    <!-- Media Folders Section -->
+                    <StackPanel x:Name="MediaFoldersSection" Visibility="Visible">
+                        <TextBlock Text="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Section_MediaFolders_Title', Mode=OneWay}" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8"/>
+                        <TextBlock Text="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Section_MediaFolders_Description', Mode=OneWay}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,24" FontSize="14"/>
+
+                        <!-- Folders List -->
+                        <ItemsControl x:Name="FoldersListControl" Margin="0,0,0,24">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource ItemBackground}" 
+                                            BorderBrush="{DynamicResource ItemBorder}" 
+                                            BorderThickness="1" CornerRadius="12"
+                                            Padding="16" Margin="0,0,0,12">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                                <TextBlock Text="{Binding Path}" FontSize="14" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold"/>
+                                                <!-- Path is dynamic, not translated -->
+                                                <TextBlock Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,0" FontSize="12"> <!-- This TextBlock needs special handling for "Tracked folder - X files" -->
+                                                    <Run Text="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Label_TrackedFolder_Prefix', Mode=OneWay}"/>
+                                                    <Run Text="{Binding Count, StringFormat='{} {0} '}"/><Run Text="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Label_Files_Suffix', Mode=OneWay}"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Background="Transparent" BorderThickness="0" 
+                                                    Click="DeleteFolder_Click" Cursor="Hand" Padding="8" VerticalAlignment="Center">
+                                                <Path Data="{StaticResource DeleteIcon}" Fill="{DynamicResource DeleteButtonRed}" Stretch="Uniform" Width="16" Height="16"/>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Add Folder Button -->
+                        <Button x:Name="AddFolderButton" Click="AddFolderButton_Click"
+                                Style="{StaticResource ModernButtonStyle}"
+                                HorizontalAlignment="Left" Margin="0,0,0,24"
+                                ToolTipService.ShowOnDisabled="True">
+                            <StackPanel Orientation="Horizontal" x:Name="AddFolderButtonContent">
+                                <Path Data="{StaticResource AddIcon}" Fill="{DynamicResource OnPrimary}" Stretch="Uniform" Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Language Section -->
+                    <StackPanel x:Name="LanguageSection" Visibility="Collapsed" Margin="0,0,0,0">
+                        <TextBlock Text="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Section_Language_Title', Mode=OneWay}" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8"/>
+                        <TextBlock Text="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Section_Language_Description', Mode=OneWay}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,24" FontSize="14"/>
+
+                        <ComboBox x:Name="LanguageDropdown" Width="300" HorizontalAlignment="Left" Margin="0,0,0,24" Tag="{StaticResource LanguageIcon}" Style="{StaticResource ModernComboBoxStyle}"/>
+                    </StackPanel>
+
+                    <!-- Screen Selection Section -->
+                    <StackPanel x:Name="ScreenSelectionSection" Visibility="Collapsed" Margin="0,0,0,0">
+                        <TextBlock Text="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Section_ScreenSelection_Title', Mode=OneWay}" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8"/>
+                        <TextBlock Text="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Section_ScreenSelection_Description', Mode=OneWay}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,24" FontSize="14"/>
+
+                        <ComboBox x:Name="ScreenDropdown" Width="300" HorizontalAlignment="Left" Margin="0,0,0,24" Tag="{StaticResource MonitorIcon}" Style="{StaticResource ModernComboBoxStyle}"/>
+                    </StackPanel>
+
+                    <!-- Appearance Section -->
+                    <StackPanel x:Name="AppearanceSection" Visibility="Collapsed" Margin="0,0,0,0">
+                        <TextBlock Text="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Section_Appearance_Title', Mode=OneWay}" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8"/>
+                        <TextBlock Text="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Section_Appearance_Description', Mode=OneWay}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,24" FontSize="14"/>
+
+                        <!-- Light/Dark Mode Selection -->
+                        <Grid Margin="0,0,0,24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="200"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Light Mode -->
+                            <Border Grid.Column="0" 
+                                    Style="{StaticResource ThemeSelectorBoxStyle}" Margin="0,0,16,0"
+                                    x:Name="LightModeBox" MouseLeftButtonDown="LightMode_Click">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Path x:Name="LightModeIconPath" Data="{StaticResource LightModeIcon}" Stretch="Uniform" Width="48" Height="48" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                    <TextBlock x:Name="LabelLightMode" FontSize="13" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Dark Mode -->
+                            <Border Grid.Column="1" 
+                                    Style="{StaticResource ThemeSelectorBoxStyle}" Margin="0,0,0,0"
+                                    x:Name="DarkModeBox" MouseLeftButtonDown="DarkMode_Click">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Path x:Name="DarkModeIconPath" Data="{StaticResource DarkModeIcon}" Stretch="Uniform" Width="48" Height="48" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                    <TextBlock x:Name="LabelDarkMode" FontSize="13" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- Custom Accent Theme Dropdown -->
+                        <StackPanel x:Name="CustomThemeContainer" Margin="0,16,0,24">
+                            <TextBlock x:Name="LabelCustomTheme" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8" FontSize="13"/>
+                            <ComboBox x:Name="CustomThemeDropdown" Width="416" HorizontalAlignment="Left" 
+                                      Tag="{StaticResource PaletteIcon}" Style="{StaticResource ModernComboBoxStyle}"
+                                      SelectionChanged="CustomThemeDropdown_SelectionChanged"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Text & Wallpaper Section -->
+                    <StackPanel x:Name="TextWallpaperSection" Visibility="Collapsed" Margin="0,0,0,0">
+                        <TextBlock Text="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Section_TextWallpaper_Title', Mode=OneWay}" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8"/>
+                        <TextBlock Text="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Section_TextWallpaper_Description', Mode=OneWay}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,24" FontSize="14"/>
+
+                        <!-- Overlay Text Customization -->
+                        <TextBlock x:Name="LabelOverlayTextHeader" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,10,0,8"/>
+                        <TextBlock x:Name="LabelOverlayTextDesc" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,12" FontSize="13"/>
+
+                        <Grid Width="416" HorizontalAlignment="Left" Margin="0,0,0,24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="OverlayTextBox" Grid.Column="0" Padding="10,8" 
+                                     Background="{DynamicResource ItemBackground}" Foreground="{DynamicResource TextPrimary}" 
+                                     BorderBrush="{DynamicResource ItemBorder}" BorderThickness="1"/>
+                            <Button x:Name="SaveOverlayButton" Grid.Column="1" Click="SaveOverlayButton_Click"
+                                    Margin="8,0,0,0" Padding="16,0" VerticalAlignment="Stretch"
+                                    Style="{StaticResource ModernButtonStyle}"/>
+                        </Grid>
+
+                        <!-- Monitor Shape Position Selector (Moved here with title) -->
+                        <TextBlock x:Name="LabelOverlayPositionHeader" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8" FontSize="13"/>
+                        <Border Width="120" Height="70" Background="{DynamicResource BackgroundDark}" 
+                                BorderBrush="{DynamicResource ItemBorder}" BorderThickness="2" 
+                                CornerRadius="4" Margin="0,0,0,24" HorizontalAlignment="Left">
+                            <UniformGrid x:Name="PositionGrid" Columns="3" Rows="3">
+                                <Button Tag="TopLeft" Click="PosButton_Click" Style="{StaticResource PosButtonStyle}"/>
+                                <Button Tag="TopCenter" Click="PosButton_Click" Style="{StaticResource PosButtonStyle}"/>
+                                <Button Tag="TopRight" Click="PosButton_Click" Style="{StaticResource PosButtonStyle}"/>
+                                <Button Tag="CenterLeft" Click="PosButton_Click" Style="{StaticResource PosButtonStyle}"/>
+                                <Button Tag="Center" Click="PosButton_Click" Style="{StaticResource PosButtonStyle}"/>
+                                <Button Tag="CenterRight" Click="PosButton_Click" Style="{StaticResource PosButtonStyle}"/>
+                                <Button Tag="BottomLeft" Click="PosButton_Click" Style="{StaticResource PosButtonStyle}"/>
+                                <Button Tag="BottomCenter" Click="PosButton_Click" Style="{StaticResource PosButtonStyle}"/>
+                                <Button Tag="BottomRight" Click="PosButton_Click" Style="{StaticResource PosButtonStyle}"/>
+                            </UniformGrid>
+                        </Border>
+
+                        <!-- Font Size Slider -->
+                        <TextBlock x:Name="LabelFontSizeHeader" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8" FontSize="13"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <Slider x:Name="FontSizeSlider" Width="300" Minimum="20" Maximum="400" 
+                                    Style="{DynamicResource FlatSlider}" VerticalAlignment="Center"
+                                    ValueChanged="FontSizeSlider_ValueChanged"/>
+                            <TextBlock x:Name="FontSizeValueText" Text="{Binding ElementName=FontSizeSlider, Path=Value, StringFormat={}{0:0}}" 
+                                       VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+
+                        <!-- Color & Border Customization (2-Column Layout to reduce scroll) -->
+                        <Grid Margin="0,0,0,24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Left Column: Main Color & Alpha -->
+                            <StackPanel Grid.Column="0">
+                                <TextBlock x:Name="LabelTextAlphaHeader" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8" FontSize="13"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                    <Slider x:Name="TextAlphaSlider" Width="180" Minimum="0" Maximum="100" 
+                                            Style="{DynamicResource FlatSlider}" VerticalAlignment="Center"
+                                            ValueChanged="TextAlphaSlider_ValueChanged"/>
+                                    <TextBlock x:Name="TextAlphaValueText" Text="{Binding ElementName=TextAlphaSlider, Path=Value, StringFormat={}{0:0}%}" 
+                                               VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextSecondary}"/>
+                                </StackPanel>
+
+                                <TextBlock x:Name="LabelTextColorHeader" Foreground="{DynamicResource TextSecondary}" Margin="0,15,0,8" FontSize="13"/>
+                                <UniformGrid x:Name="ColorPaletteGrid" Columns="6" Rows="2" HorizontalAlignment="Left" Width="240" Margin="0,0,0,16">
+                                    <Button Background="#FFFFFF" Tag="#FFFFFF" Click="ColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#000000" Tag="#000000" Click="ColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#808080" Tag="#808080" Click="ColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#FF0000" Tag="#FF0000" Click="ColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#0000FF" Tag="#0000FF" Click="ColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#008000" Tag="#008000" Click="ColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#FFFF00" Tag="#FFFF00" Click="ColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#FFA500" Tag="#FFA500" Click="ColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#800080" Tag="#800080" Click="ColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#008080" Tag="#008080" Click="ColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#FFC0CB" Tag="#FFC0CB" Click="ColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#A52A2A" Tag="#A52A2A" Click="ColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                </UniformGrid>
+                            </StackPanel>
+
+                            <!-- Right Column: Border Toggle & Color -->
+                            <StackPanel Grid.Column="1" Margin="20,0,0,0">
+                                <CheckBox x:Name="EnableTextShadowCheckBox" Content="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Checkbox_EnableTextShadow'}" 
+                                          Style="{DynamicResource SwitchCheckBox}"
+                                          Foreground="{DynamicResource TextPrimary}" FontSize="13" Margin="0,28,0,12" VerticalAlignment="Center"
+                                          Checked="EnableTextShadowCheckBox_Checked" Unchecked="EnableTextShadowCheckBox_Unchecked"/>
+
+                                <TextBlock x:Name="LabelShadowColorHeader" Foreground="{DynamicResource TextSecondary}" Margin="0,20,0,8" FontSize="13"/>
+                                <UniformGrid x:Name="ShadowColorPaletteGrid" Columns="6" Rows="2" HorizontalAlignment="Left" Width="240" Margin="0,0,0,16">
+                                    <Button Background="#FFFFFF" Tag="#FFFFFF" Click="ShadowColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#000000" Tag="#000000" Click="ShadowColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#808080" Tag="#808080" Click="ShadowColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#FF0000" Tag="#FF0000" Click="ShadowColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#0000FF" Tag="#0000FF" Click="ShadowColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#008000" Tag="#008000" Click="ShadowColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#FFFF00" Tag="#FFFF00" Click="ShadowColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#FFA500" Tag="#FFA500" Click="ShadowColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#800080" Tag="#800080" Click="ShadowColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#008080" Tag="#008080" Click="ShadowColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#FFC0CB" Tag="#FFC0CB" Click="ShadowColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                    <Button Background="#A52A2A" Tag="#A52A2A" Click="ShadowColorButton_Click" Style="{StaticResource PosButtonStyle}" Width="32" Height="32" Margin="2"/>
+                                </UniformGrid>
+
+                                <TextBlock x:Name="LabelShadowBlurHeader" Foreground="{DynamicResource TextSecondary}" Margin="0,10,0,8" FontSize="13"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Slider x:Name="ShadowBlurSlider" Width="180" Minimum="0" Maximum="50" Style="{DynamicResource FlatSlider}" VerticalAlignment="Center" ValueChanged="ShadowBlurSlider_ValueChanged"/>
+                                    <TextBlock Text="{Binding ElementName=ShadowBlurSlider, Path=Value, StringFormat={}{0:0}}" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextSecondary}"/>
+                                </StackPanel>
+
+                                <TextBlock x:Name="LabelShadowDepthHeader" Foreground="{DynamicResource TextSecondary}" Margin="0,5,0,8" FontSize="13"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Slider x:Name="ShadowDepthSlider" Width="180" Minimum="0" Maximum="20" Style="{DynamicResource FlatSlider}" VerticalAlignment="Center" ValueChanged="ShadowDepthSlider_ValueChanged"/>
+                                    <TextBlock Text="{Binding ElementName=ShadowDepthSlider, Path=Value, StringFormat={}{0:0}}" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextSecondary}"/>
+                                </StackPanel>
+
+                                <TextBlock x:Name="LabelShadowOpacityHeader" Foreground="{DynamicResource TextSecondary}" Margin="0,5,0,8" FontSize="13"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Slider x:Name="ShadowOpacitySlider" Width="180" Minimum="0" Maximum="100" Style="{DynamicResource FlatSlider}" VerticalAlignment="Center" ValueChanged="ShadowOpacitySlider_ValueChanged"/>
+                                    <TextBlock Text="{Binding ElementName=ShadowOpacitySlider, Path=Value, StringFormat={}{0:0}%}" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextSecondary}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Background Image Customization -->
+                        <TextBlock x:Name="LabelBackgroundImageHeader" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,10,0,8"/>
+                        <TextBlock x:Name="LabelBackgroundImageDesc" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,12" FontSize="13"/>
+                        <CheckBox x:Name="EnableBackgroundImageCheckBox" Content="{Binding Source={x:Null}, Converter={StaticResource TranslationConverter}, ConverterParameter='Checkbox_EnableBackgroundImage'}" 
+                                  Style="{DynamicResource SwitchCheckBox}"
+                                  Foreground="{DynamicResource TextPrimary}" FontSize="13" Margin="0,0,0,12" VerticalAlignment="Center"
+                                  Checked="EnableBackgroundImageCheckBox_Checked" Unchecked="EnableBackgroundImageCheckBox_Unchecked"/>
+                        <Grid Width="416" HorizontalAlignment="Left" Margin="0,0,0,24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="BackgroundImagePathTextBox" Grid.Column="0" Padding="10,8" IsReadOnly="True"
+                                     Background="{DynamicResource ItemBackground}" Foreground="{DynamicResource TextPrimary}" 
+                                     BorderBrush="{DynamicResource ItemBorder}" BorderThickness="1"/>
+                            <Button x:Name="BrowseImageButton" Grid.Column="1" Click="BrowseImageButton_Click"
+                                    Margin="8,0,0,0" Padding="16,0" VerticalAlignment="Stretch"
+                                    Style="{StaticResource ModernButtonStyle}"/>
+                        </Grid>
+                        <Border HorizontalAlignment="Left" Margin="0,0,0,24" 
+                                BorderBrush="{DynamicResource ItemBorder}" BorderThickness="1">
+                            <Image x:Name="BackgroundImagePreview" Width="416" Height="200" Stretch="Uniform"/>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- About Section -->
+                    <StackPanel x:Name="AboutSection" Visibility="Collapsed" Margin="0,0,0,0">
+                        <TextBlock Text="{Binding ConverterParameter=Section_About_Title, Converter={StaticResource TranslationConverter}, Mode=OneWay, Source={x:Null}}" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8"/>
+
+                        <Border Background="{DynamicResource ItemBackground}" BorderBrush="{DynamicResource ItemBorder}" BorderThickness="1" CornerRadius="12" Padding="32,32,32,32" Margin="0,10,0,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Background="{DynamicResource Primary}" Width="64" Height="64" Padding="12">
+                                        <Path Data="{StaticResource AppIcon}" Fill="White" Stretch="Uniform"/>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock x:Name="LabelAppName" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="10,0,0,0"/>
+                                        <TextBlock x:Name="LabelVersionInfo" FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <TextBlock x:Name="LabelAppDescription"
+                                           FontSize="13" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" LineHeight="20" Margin="0,10,0,0"/>
+
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,8,0,8"/>
+
+                                <!-- Links -->
+                                <StackPanel>
+                                    <TextBlock x:Name="LabelResources" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock x:Name="LinkOfficialWebsite" Foreground="{DynamicResource Primary}" Cursor="Hand" FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="LinkReleaseNotes" Foreground="{DynamicResource Primary}" Cursor="Hand" FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                                    <TextBlock x:Name="LinkSupport" Foreground="{DynamicResource Primary}" Cursor="Hand" FontSize="12" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>

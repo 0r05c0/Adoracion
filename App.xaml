@@ -1,0 +1,17 @@
+﻿<Application x:Class="Adoracion.App"
+xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+xmlns:local="clr-namespace:Adoracion"
+xmlns:conv="clr-namespace:Adoracion.Converters"
+StartupUri="Main.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/DarkTheme.xaml"/>
+                <ResourceDictionary Source="Themes/Icons.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            
+            <conv:TranslationConverter x:Key="TranslationConverter"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

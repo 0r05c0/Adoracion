@@ -1,0 +1,33 @@
+<Window x:Class="Adoracion.SplashScreenWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:services="clr-namespace:Adoracion.Services"
+        Title="Loading Adoracion" Height="300" Width="450"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        WindowStartupLocation="CenterScreen" Topmost="True" ShowInTaskbar="False">
+    <Border Background="{DynamicResource BackgroundDark}" 
+            CornerRadius="10" 
+            BorderBrush="{DynamicResource Primary}" 
+            BorderThickness="2">
+        <Grid>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <!-- App Icon -->
+                <Path Data="{StaticResource AppIcon}" 
+                      Fill="{DynamicResource Primary}" 
+                      Width="80" Height="80" 
+                      Stretch="Uniform" 
+                      Margin="0,0,0,20"/>
+                
+                <TextBlock Text="Adoracion" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource Primary}" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="StatusText" Text="{Binding [Opening_Message], Source={x:Static services:LocalizationService.Instance}}" FontSize="14" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" Margin="0,10,0,20"/>
+                
+                <!-- Simple Indeterminate Loader -->
+                <ProgressBar IsIndeterminate="True" Width="250" Height="4" Background="#20FFFFFF" BorderThickness="0">
+                    <ProgressBar.Foreground>
+                        <SolidColorBrush Color="{Binding Source={StaticResource Primary}, Path=Color}"/>
+                    </ProgressBar.Foreground>
+                </ProgressBar>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,262 @@
+/*
+ Copyright (C) 2026 Matias Orosco
+
+ This file is part of the Adoracion project.
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ See the LICENSE file distributed with this project for full terms.
+*/
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media.Animation;
+using Adoracion.Helpers;
+using Adoracion.Models;
+using Adoracion.Services;
+using System;
+
+namespace Adoracion
+{
+    public partial class SaveOpenPlaylistWindow  : Window
+    {
+        public enum WindowMode { Save, Open }
+        private WindowMode _mode;
+        private bool _isActuallyClosing = false;
+        
+        public List<MediaFile>? SelectedPlaylistItems { get; private set; }
+
+        /// <summary>
+        /// Constructor for Opening an existing playlist.
+        /// </summary>
+        public SaveOpenPlaylistWindow()
+        {
+            InitializeComponent();
+            _mode = WindowMode.Open;
+            SetupOpenMode();
+            InitializeCommon();
+        }
+
+        /// <summary>
+        /// Constructor for Saving a new playlist.
+        /// </summary>
+        public SaveOpenPlaylistWindow(IEnumerable<MediaFile> items)
+        {
+            InitializeComponent();
+            _mode = WindowMode.Save;
+            ItemsPreviewList.ItemsSource = items;
+            SetupSaveMode();
+            InitializeCommon();
+        }
+
+        private void InitializeCommon()
+        {
+            // Center the window relative to owner
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+            // Subscribe to language changes for dynamic updates
+            TranslationHelper.LanguageChanged += (s, e) => RefreshUIText();
+        }
+
+        private void SetupSaveMode()
+        {
+            InputLabel.Visibility = Visibility.Visible;
+            PlaylistNameInput.Visibility = Visibility.Visible;
+            PlaylistSelector.Visibility = Visibility.Collapsed;
+            DeletePlaylistButton.Visibility = Visibility.Collapsed;
+            
+            RefreshUIText();
+            Loaded += (s, e) => PlaylistNameInput.Focus();
+            UpdateSaveButtonState();
+        }
+
+        private void SetupOpenMode()
+        {
+            InputLabel.Visibility = Visibility.Collapsed; // No prompt needed for dropdown selection
+            PlaylistNameInput.Visibility = Visibility.Collapsed;
+            PlaylistSelector.Visibility = Visibility.Visible;
+            DeletePlaylistButton.Visibility = Visibility.Visible;
+
+            RefreshUIText();
+            PlaylistSelector.ItemsSource = PlaylistService.GetPlaylistNames();
+            UpdateSaveButtonState();
+        }
+
+        /// <summary>
+        /// Updates all UI text based on current language and window mode.
+        /// </summary>
+        private void RefreshUIText()
+        {
+            bool isSave = _mode == WindowMode.Save;
+            
+            this.Title = TranslationHelper.GetString(isSave ? "Title_SavePlaylist" : "Title_OpenPlaylist", isSave ? "Save Playlist" : "Open Playlist");
+            WindowTitleText.Text = this.Title;
+            SaveButton.Content = TranslationHelper.GetString(isSave ? "Button_Save" : "Button_Open", isSave ? "Save" : "Open");
+            
+            // The following are handled by XAML bindings but can be manually refreshed if needed:
+            // InputLabel.Text, ItemsPreviewHeader, etc.
+        }
+
+        private void RemovePreviewItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn && btn.DataContext is MediaFile itemToRemove)
+            {
+                if (ItemsPreviewList.ItemsSource is IEnumerable<MediaFile> currentItems)
+                {
+                    var updatedList = currentItems.ToList();
+                    updatedList.Remove(itemToRemove);
+                    ItemsPreviewList.ItemsSource = updatedList;
+
+                    if (_mode == WindowMode.Open)
+                    {
+                        SelectedPlaylistItems = updatedList;
+
+                        // Immediately persist changes to the database in Open mode
+                        if (PlaylistSelector.SelectedItem is string playlistName)
+                        {
+                            try
+                            {
+                                if (updatedList.Any())
+                                {
+                                    PlaylistService.SavePlaylist(playlistName, updatedList);
+                                }
+                                else
+                                {
+                                    // Remove the playlist itself if it becomes empty
+                                    PlaylistService.DeletePlaylist(playlistName);
+                                    PlaylistSelector.ItemsSource = PlaylistService.GetPlaylistNames();
+                                    SelectedPlaylistItems = null;
+                                    UpdateSaveButtonState();
+                                }
+                            }
+                            catch
+                            {
+                                string msg = TranslationHelper.GetString("Error_SavePlaylistFailed", "Failed to update playlist in database.");
+                                string title = TranslationHelper.GetString("Error_Title", "Error");
+                                ModernMessageBox.Show(msg, title, MessageBoxButton.OK, this);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private void PlaylistNameInput_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            UpdateSaveButtonState();
+        }
+
+        private void PlaylistSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateSaveButtonState();
+
+            if (PlaylistSelector.SelectedItem is string name)
+            {
+                var items = PlaylistService.GetPlaylistItems(name);
+                ItemsPreviewList.ItemsSource = items;
+                SelectedPlaylistItems = items;
+            }
+        }
+
+        private void UpdateSaveButtonState()
+        {
+            if (SaveButton == null || DeletePlaylistButton == null) return;
+
+            if (_mode == WindowMode.Save)
+            {
+                SaveButton.IsEnabled = !string.IsNullOrWhiteSpace(PlaylistNameInput.Text);
+                DeletePlaylistButton.IsEnabled = false;
+            }
+            else
+            {
+                bool hasSelection = PlaylistSelector.SelectedItem != null;
+                SaveButton.IsEnabled = hasSelection;
+                DeletePlaylistButton.IsEnabled = hasSelection;
+            }
+        }
+
+        private void DeletePlaylist_Click(object sender, RoutedEventArgs e)
+        {
+            if (PlaylistSelector.SelectedItem is string playlistName)
+            {
+                var result = ModernMessageBox.Show(
+                    $"{TranslationHelper.GetString("Msg_ConfirmDeletePlaylist", "Are you sure you want to delete the playlist")} '{playlistName}'?",
+                    TranslationHelper.GetString("Title_Confirm", "Confirm"),
+                    MessageBoxButton.YesNo, this);
+
+                if (result == ModernMessageBox.CustomResult.Yes || result == ModernMessageBox.CustomResult.Ok)
+                {
+                    try
+                    {
+                        PlaylistService.DeletePlaylist(playlistName);
+                        PlaylistSelector.ItemsSource = PlaylistService.GetPlaylistNames();
+                        SelectedPlaylistItems = null;
+                        ItemsPreviewList.ItemsSource = null;
+                        UpdateSaveButtonState();
+                    }
+                    catch
+                    {
+                        string msg = TranslationHelper.GetString("Error_DeletePlaylistFailed", "Failed to delete playlist.");
+                        string title = TranslationHelper.GetString("Error_Title", "Error");
+                        ModernMessageBox.Show(msg, title, MessageBoxButton.OK, this);
+                    }
+                }
+            }
+        }
+
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            DialogResult = false;
+            Close();
+        }
+
+        private void SaveButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_mode == WindowMode.Save)
+            {
+                string fileName = PlaylistNameInput.Text.Trim();
+                
+                try
+                {
+                    var items = (IEnumerable<MediaFile>)ItemsPreviewList.ItemsSource;
+                    PlaylistService.SavePlaylist(fileName, items);
+                }
+                catch
+                {
+                    string msg = TranslationHelper.GetString("Error_SavePlaylistFailed", "Failed to save playlist to database.");
+                    string title = TranslationHelper.GetString("Error_Title", "Error");
+                    ModernMessageBox.Show(msg, title, MessageBoxButton.OK, this);
+                    return;
+                }
+            }
+            
+            DialogResult = true;
+            Close();
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            if (!_isActuallyClosing)
+            {
+                e.Cancel = true;
+                var fadeOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.1))
+                {
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+                };
+                fadeOut.Completed += (s, ev) =>
+                {
+                    _isActuallyClosing = true;
+                    this.Close();
+                };
+                this.BeginAnimation(OpacityProperty, fadeOut);
+                return;
+            }
+            base.OnClosing(e);
+        }
+    }
+}

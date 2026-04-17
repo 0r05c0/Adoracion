@@ -1,7 +1,7 @@
 {
   "Language": "es",
   "EnableLogging": "false",
-  "Crossfade": "false",
+  "Crossfade": "true",
   "ThemeName": "default",
   "ThemeMode": "Dark"
 }

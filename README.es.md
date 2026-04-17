@@ -43,9 +43,9 @@ La aplicación guarda las preferencias en un archivo `UserSettings.json` ubicado
 
 Puedes descargar los binarios estables más recientes y ver el historial de cambios aquí:
 
-- **Última Versión Estable:** Descargar x86 *Versión 0.9.0.1-beta*
-                     Descargar x64 *Versión 0.9.0.1-beta*
-- **Todos los Lanzamientos:** Página de *Releases en GitHub*
+- **Última Versión Estable:** Descargar x86 *[Versión 0.9.0.1-beta](https://github.com/0r05c0/Adoracion/releases/tag/v0.9.0.1)*
+                              Descargar x64 *[Versión 0.9.0.1-beta](https://github.com/0r05c0/Adoracion/releases/tag/v0.9.0.1_x64)*
+- **Todos los Lanzamientos:** Página de *[Releases en GitHub](https://github.com/0r05c0/Adoracion/releases)*
 
 ## Instalación
 1. Asegúrate de tener instalado el entorno de ejecución (Runtime) de .NET.
@@ -59,10 +59,17 @@ Puedes descargar los binarios estables más recientes y ver el historial de camb
 
 Este proyecto utiliza los siguientes paquetes NuGet. Cada uno es compatible con la licencia GNU GPL v3:
 
-| Paquete                        | Versión   | Licencia        |
-|---------------------------------|-----------|-----------------|
-| LibVLCSharp                     | 3.9.6     | LGPL v2.1+      |
-| LibVLCSharp.WPF                 | 3.9.6     | LGPL v2.1+      |
-| VideoLAN.LibVLC.Windows.GPL     | 3.0.23    | GPL v2+         |
-| Microsoft.Data.Sqlite           | 10.0.5    | MIT             |
-| SQLite                          | 3.13.0    | Public Domain   |
+| Paquete                        | Versión   | Licencia        | URL de la licencia                                                          |
+|---------------------------------|-----------|-----------------|-----------------------------------------------------------------------------|
+| LibVLCSharp                     | 3.9.6     | LGPL v2.1+      | https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html                     |
+| LibVLCSharp.WPF                 | 3.9.6     | LGPL v2.1+      | https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html                     |
+| VideoLAN.LibVLC.Windows.GPL     | 3.0.23    | GPL v2+         | https://www.gnu.org/licenses/old-licenses/gpl-2.0.html                      |
+| Microsoft.Data.Sqlite           | 10.0.5    | MIT             | https://opensource.org/licenses/MIT                                         |
+| SQLite                          | 3.13.0    | Public Domain   | https://www.sqlite.org/copyright.html                                       |
+
+### Notas
+
+- Las bibliotecas LGPL (LibVLCSharp, LibVLCSharp.WPF) son compatibles con GPL v3, pero se deben cumplir los requisitos de ambas licencias.
+- Las licencias MIT y de Dominio Público son totalmente compatibles con GPL v3.
+- Para obtener los textos completos de las licencias, consulte los enlaces respectivos arriba o el archivo `LICENSE` en este repositorio.
+- Si distribuye binarios, asegúrese de que los usuarios puedan volver a vincular o reemplazar las bibliotecas LGPL según lo exige la LGPL.

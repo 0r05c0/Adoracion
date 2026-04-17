@@ -69,7 +69,7 @@ This project uses the following NuGet packages. Each is compatible with the GNU 
 
 ### Notes
 
-- LGPL libraries (LibVLCSharp, LibVLCSharp.WPF) are compatible with GPL v3, but you must comply with both licenses� requirements.
+- LGPL libraries (LibVLCSharp, LibVLCSharp.WPF) are compatible with GPL v3, but you must comply with both licenses’ requirements.
 - MIT and Public Domain licenses are fully compatible with GPL v3.
 - For full license texts, see the respective links above or the `LICENSE` file in this repository.
 - If you distribute binaries, ensure users can relink or replace LGPL libraries as required by the LGPL.

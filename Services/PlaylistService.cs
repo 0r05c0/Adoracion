@@ -136,5 +136,18 @@ namespace Adoracion.Services
                 command.ExecuteNonQuery();
             }
         }
+
+        public static bool PlaylistExists(string name)
+        {
+            using (var connection = new SqliteConnection(ConnectionString))
+            {
+                connection.Open();
+                var command = connection.CreateCommand();
+                command.CommandText = "SELECT COUNT(1) FROM Playlists WHERE Name = @name";
+                command.Parameters.AddWithValue("@name", name);
+                var result = command.ExecuteScalar();
+                return result != null && Convert.ToInt32(result) > 0;
+            }
+        }
     }
 }

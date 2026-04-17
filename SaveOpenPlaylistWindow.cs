@@ -14,6 +14,8 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Adoracion.Helpers;
 using Adoracion.Models;
@@ -71,6 +73,7 @@ namespace Adoracion
             
             RefreshUIText();
             Loaded += (s, e) => PlaylistNameInput.Focus();
+            PlaylistNameInput.KeyDown += PlaylistNameInput_KeyDown;
             UpdateSaveButtonState();
         }
 
@@ -111,6 +114,8 @@ namespace Adoracion
                     updatedList.Remove(itemToRemove);
                     ItemsPreviewList.ItemsSource = updatedList;
 
+                    UpdateSaveButtonState();
+
                     if (_mode == WindowMode.Open)
                     {
                         SelectedPlaylistItems = updatedList;
@@ -145,9 +150,43 @@ namespace Adoracion
             }
         }
 
+        private void ClearNameButton_Click(object sender, RoutedEventArgs e)
+        {
+            PlaylistNameInput.Text = string.Empty;
+            PlaylistNameInput.Focus();
+            UpdateSaveButtonState();
+        }
+
         private void PlaylistNameInput_TextChanged(object sender, TextChangedEventArgs e)
         {
             UpdateSaveButtonState();
+
+            if (_mode == WindowMode.Save)
+            {
+                string name = PlaylistNameInput.Text.Trim();
+                bool exists = !string.IsNullOrEmpty(name) && PlaylistService.PlaylistExists(name);
+
+                DuplicateNameErrorLabel.Visibility = exists ? Visibility.Visible : Visibility.Collapsed;
+
+                if (exists)
+                {
+                    PlaylistNameInput.BorderBrush = (System.Windows.Media.Brush)FindResource("DeleteButtonRed");
+                    PlaylistNameInput.BorderThickness = new Thickness(2);                    
+                }
+                else
+                {
+                    PlaylistNameInput.ClearValue(BorderBrushProperty);
+                    PlaylistNameInput.ClearValue(BorderThicknessProperty);
+                }
+            }
+        }
+
+        private void PlaylistNameInput_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && SaveButton.IsEnabled)
+            {
+                SaveButton_Click(sender, new RoutedEventArgs());
+            }
         }
 
         private void PlaylistSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -168,7 +207,12 @@ namespace Adoracion
 
             if (_mode == WindowMode.Save)
             {
-                SaveButton.IsEnabled = !string.IsNullOrWhiteSpace(PlaylistNameInput.Text);
+                string name = PlaylistNameInput.Text.Trim();
+                bool hasName = !string.IsNullOrWhiteSpace(name);
+                bool hasItems = ItemsPreviewList?.ItemsSource is IEnumerable<MediaFile> items && items.Any();
+                bool exists = hasName && PlaylistService.PlaylistExists(name);
+
+                SaveButton.IsEnabled = hasName && hasItems && !exists;
                 DeletePlaylistButton.IsEnabled = false;
             }
             else
@@ -218,7 +262,7 @@ namespace Adoracion
         {
             if (_mode == WindowMode.Save)
             {
-                string fileName = PlaylistNameInput.Text.Trim();
+                string fileName = PlaylistNameInput.Text.Trim();                
                 
                 try
                 {

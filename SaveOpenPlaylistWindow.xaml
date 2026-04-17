@@ -35,7 +35,7 @@
                                     BorderBrush="{TemplateBinding BorderBrush}" 
                                     BorderThickness="{TemplateBinding BorderThickness}" 
                                     CornerRadius="8"/>
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="10,0" VerticalAlignment="Center"/>
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="10,0,35,0" VerticalAlignment="Center"/>
                             <TextBlock x:Name="PlaceholderText" 
                                        Text="{Binding [Placeholder_PlaylistName], Source={x:Static services:LocalizationService.Instance}}" 
                                        Foreground="{DynamicResource TextSecondary}"
@@ -193,6 +193,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
@@ -219,6 +220,24 @@
                 <TextBox x:Name="PlaylistNameInput" Grid.Column="0" Grid.ColumnSpan="2"
                          Style="{DynamicResource ModernTextBoxStyle}"
                          TextChanged="PlaylistNameInput_TextChanged"/>
+                <Button x:Name="ClearNameButton" Grid.Column="0" Grid.ColumnSpan="2"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"
+                        Style="{DynamicResource PlayerControlButton}" Width="28" Height="28"
+                        Visibility="{Binding Visibility, ElementName=PlaylistNameInput}"
+                        Click="ClearNameButton_Click">
+                    <Path Data="{StaticResource CloseIcon}" Width="10" Height="10" Stretch="Uniform">
+                        <Path.Style>
+                            <Style TargetType="Path">
+                                <Setter Property="Fill" Value="{DynamicResource TextSecondary}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                        <Setter Property="Fill" Value="{DynamicResource OnPrimary}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Path.Style>
+                    </Path>
+                </Button>
                 <ComboBox x:Name="PlaylistSelector" Grid.Column="0" Height="40" Visibility="Collapsed"
                           SelectionChanged="PlaylistSelector_SelectionChanged" Style="{DynamicResource ModernComboBoxStyle}"
                           Tag="{StaticResource MusicNoteIcon}"/>
@@ -249,8 +268,15 @@
                 </Button>
             </Grid>
 
-            <TextBlock Grid.Row="3" Text="{Binding [Label_ItemsInPlaylist], Source={x:Static services:LocalizationService.Instance}}" Margin="0,0,0,5" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
-            <ListBox x:Name="ItemsPreviewList" Grid.Row="4" Margin="0,0,0,20"
+            <TextBlock x:Name="DuplicateNameErrorLabel" Grid.Row="3" 
+                       Text="{Binding [Error_PlaylistAlreadyExists], Source={x:Static services:LocalizationService.Instance}}" 
+                       Foreground="{DynamicResource DeleteButtonRed}" 
+                       FontSize="11" Margin="0,-15,0,10" 
+                       Visibility="Collapsed"
+                       HorizontalAlignment="Left"/>
+
+            <TextBlock Grid.Row="4" Text="{Binding [Label_ItemsInPlaylist], Source={x:Static services:LocalizationService.Instance}}" Margin="0,0,0,5" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
+            <ListBox x:Name="ItemsPreviewList" Grid.Row="5" Margin="0,0,0,20"
                      Background="{DynamicResource ItemBackground}" Foreground="{DynamicResource TextLight}"
                      BorderBrush="{DynamicResource ItemBorder}" BorderThickness="1"
                      HorizontalContentAlignment="Stretch">
@@ -273,7 +299,7 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-            <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
+            <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button x:Name="CancelButton" Content="{Binding [Button_Cancel], Source={x:Static services:LocalizationService.Instance}}" Click="CancelButton_Click" 
                         Width="100" Height="35" Margin="0,0,10,0"
                         Style="{DynamicResource PillButtonStyle}" Background="Transparent"

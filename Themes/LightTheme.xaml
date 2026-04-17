@@ -99,6 +99,16 @@
     <SolidColorBrush x:Key="OtherThemeBackground">#1a1f2e</SolidColorBrush> <!-- Dark theme's ItemBackground -->
     <SolidColorBrush x:Key="OtherThemeTextPrimary">#ffffff</SolidColorBrush> <!-- Dark theme's TextPrimary -->
 
+    <!-- Style Hyperlink colors-->
+    <Style TargetType="{x:Type Hyperlink}">
+        <Setter Property="Foreground" Value="{DynamicResource Primary}" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource TextLight}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- Style Player Control buttons-->
     <!-- Play Round Button Style -->
     <Style x:Key="LargeRoundButton" TargetType="Button">

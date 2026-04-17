@@ -15,15 +15,18 @@ using Adoracion.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Windows; // Keep this for WPF types
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input; // Keep this for MouseButtonEventArgs
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Navigation;
 using WpfButton = System.Windows.Controls.Button;
 
 namespace Adoracion
@@ -383,12 +386,15 @@ namespace Adoracion
                 lblAppDescription.Text = TranslationHelper.GetString("Label_AppDescription", "Professional media playback engine designed for multi-screen presentations and performances. Built with love by the community.");
             if (FindName("LabelResources") is TextBlock lblResources)
                 lblResources.Text = TranslationHelper.GetString("Label_Resources", "Resources");
-            if (FindName("LinkOfficialWebsite") is TextBlock linkOfficialWebsite)
+
+            if (FindName("LinkOfficialWebsite") is Run linkOfficialWebsite)
                 linkOfficialWebsite.Text = TranslationHelper.GetString("Link_OfficialWebsite", "Official Website");
-            if (FindName("LinkReleaseNotes") is TextBlock linkReleaseNotes)
+            if (FindName("LinkReleaseNotes") is Run linkReleaseNotes)
                 linkReleaseNotes.Text = TranslationHelper.GetString("Link_ReleaseNotes", "Release Notes");
-            if (FindName("LinkSupport") is TextBlock linkSupport)
+            if (FindName("LinkSupport") is Run linkSupport)
                 linkSupport.Text = TranslationHelper.GetString("Link_Support", "Support");
+            if (FindName("LinkLicense") is Run linkLicense)
+                linkLicense.Text = TranslationHelper.GetString("Link_License", "License");
         }
 
         /// <summary>
@@ -1076,6 +1082,20 @@ namespace Adoracion
                 string title = TranslationHelper.GetString("Error_Title", "Error");
                 ModernMessageBox.Show(message, title, MessageBoxButton.OK, this);
             }
+        }
+
+        /// <summary>
+        /// Handles hyperlink navigation requests by opening the specified URI in the default web browser.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The event data containing navigation information.</param>
+        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri)
+            {
+                UseShellExecute = true
+            });
+            e.Handled = true;
         }
 
         /// <summary>

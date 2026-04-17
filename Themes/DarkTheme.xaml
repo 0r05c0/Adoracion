@@ -97,6 +97,16 @@
     <SolidColorBrush x:Key="OtherThemeTextPrimary">#111521</SolidColorBrush> <!-- Light theme's TextPrimary -->
     <SolidColorBrush x:Key="Slate900">#0f172a</SolidColorBrush>
 
+    <!-- Style Hyperlink colors-->
+    <Style TargetType="{x:Type Hyperlink}">
+        <Setter Property="Foreground" Value="{DynamicResource Primary}" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource TextLight}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- Style Player Control buttons-->
     <!-- Large round play/pause control used in footer center -->
     <Style x:Key="LargeRoundButton" TargetType="Button">

@@ -169,9 +169,14 @@
                             </Popup>
                         </Grid>
                         <ControlTemplate.Triggers>
-                            <DataTrigger Binding="{Binding SelectedItem, RelativeSource={RelativeSource Self}}" Value="{x:Null}">
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding SelectedItem, RelativeSource={RelativeSource Self}}" Value="{x:Null}"/>
+                                    <Condition Binding="{Binding Text, ElementName=PART_EditableTextBox}" Value=""/>
+                                    <Condition Binding="{Binding IsFocused, ElementName=PART_EditableTextBox}" Value="False"/>
+                                </MultiDataTrigger.Conditions>
                                 <Setter TargetName="PlaceholderText" Property="Visibility" Value="Visible"/>
-                            </DataTrigger>
+                            </MultiDataTrigger>
                             <Trigger Property="IsEditable" Value="True">
                                 <Setter Property="IsTabStop" Value="False"/>
                                 <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>

@@ -21,6 +21,7 @@ using Adoracion.Helpers;
 using Adoracion.Models;
 using Adoracion.Services;
 using System;
+using System.ComponentModel;
 
 namespace Adoracion
 {
@@ -86,6 +87,32 @@ namespace Adoracion
 
             RefreshUIText();
             PlaylistSelector.ItemsSource = PlaylistService.GetPlaylistNames();
+            PlaylistSelector.GotFocus += (s, e) => PlaylistSelector.IsDropDownOpen = true;
+            
+            PlaylistSelector.Loaded += (s, e) =>
+            {
+                if (PlaylistSelector.Template.FindName("PART_EditableTextBox", PlaylistSelector) is System.Windows.Controls.TextBox textBox)
+                {
+                    textBox.TextChanged += (ts, te) =>
+                    {
+                        if (textBox.IsFocused)
+                        {
+                            PlaylistSelector.IsDropDownOpen = true;
+                            var filter = textBox.Text;
+                            if (string.IsNullOrEmpty(filter))
+                            {
+                                PlaylistSelector.Items.Filter = null;
+                            }
+                            else
+                            {
+                                PlaylistSelector.Items.Filter = item =>
+                                    item.ToString().Contains(filter, StringComparison.OrdinalIgnoreCase);
+                            }
+                        }
+                    };
+                }
+            };
+
             UpdateSaveButtonState();
         }
 

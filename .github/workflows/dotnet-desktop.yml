@@ -7,6 +7,10 @@ on:
   pull_request:
     branches: [ "master" ]
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build:
     strategy:
@@ -52,13 +56,28 @@ jobs:
         name: Adoracion-${{ matrix.runtime }}
         path: ./publish/Adoracion-${{ matrix.runtime }}.zip
 
-    - name: Create Release
-      if: github.event_name == 'push'
+  release:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./release-assets
+        pattern: Adoracion-*
+        merge-multiple: true
+
+    - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'nightly' }}
         name: ${{ startsWith(github.ref, 'refs/tags/') && format('Release {0}', github.ref_name) || format('Nightly Build {0}', github.run_number) }}
-        files: ./publish/*.zip
+        files: |
+          ./release-assets/*.zip
         draft: false
         prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
         make_latest: ${{ startsWith(github.ref, 'refs/tags/') }}

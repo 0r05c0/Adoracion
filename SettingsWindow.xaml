@@ -658,7 +658,7 @@
                                     <TextBlock x:Name="LabelResources" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
                                     <!-- Links -->
                                     <TextBlock Margin="0,4,0,0">                                           
-                                        <Hyperlink NavigateUri="https://github.com/0r05c0/Adoracion" RequestNavigate="Hyperlink_RequestNavigate">
+                                        <Hyperlink NavigateUri="https://0r05c0.github.io/Adoracion/" RequestNavigate="Hyperlink_RequestNavigate">
                                             <Hyperlink.Inlines>
                                                 <Run x:Name="LinkOfficialWebsite" Text="{Binding ConverterParameter=Link_OfficialWebsite, Converter={StaticResource TranslationConverter}, Mode=OneWay, Source={x:Null}}"/>                                                           
                                             </Hyperlink.Inlines>

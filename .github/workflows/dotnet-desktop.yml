@@ -73,11 +73,11 @@ jobs:
         merge-multiple: true
 
     - name: Delete existing nightly release (if applicable)
-      # This step only runs for pushes to the 'master' branch, which create the 'nightly' release.
-      # It ensures the 'nightly' release is always recreated, regenerating source code archives.
+      # This ensures the 'nightly' release AND tag are removed before recreation.
+      # This forces GitHub to regenerate the Source Code zips for the new commit.
       if: github.event_name == 'push' && github.ref_name == 'master'
       run: |
-        gh release delete nightly --yes || true # '--yes' confirms deletion, '|| true' prevents failure if release doesn't exist
+        gh release delete nightly --yes --cleanup-tag || true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -87,6 +87,11 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'nightly' }}
         name: ${{ startsWith(github.ref, 'refs/tags/v') && format('Release {0}', github.ref_name) || format('Nightly Build {0}', github.run_number) }}
+        body: |
+          ${{ startsWith(github.ref, 'refs/tags/v') && format('Official Release {0}', github.ref_name) || 'Automated nightly build from the master branch.' }}
+          
+          **Run Number:** ${{ github.run_number }}
+          **Commit:** ${{ github.sha }}
         target_commitish: ${{ github.sha }}
         files: |
           ./release-assets/*.zip

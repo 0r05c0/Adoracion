@@ -88,83 +88,16 @@ namespace Adoracion
         {
             _splash = new SplashScreenWindow();
             _splash.Show();
+            
+            // Force a render pass so the Splash and its ProgressBar appear and start animating immediately
+            _splash.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Render, new Action(() => { }));
             _splash.UpdateStatus(TranslationHelper.GetString("Splash_InitUI", "Initializing UI..."));
 
             InitializeComponent();
             mediaFiles = new ObservableCollection<MediaFile>();
             AppSettingsService.SettingChanged += OnSettingChanged;
             TranslationHelper.LanguageChanged += TranslationHelper_LanguageChanged;
-
-            InitializeMonitors();
-
-            if (System.Windows.Forms.Screen.AllScreens.Length > 1)
-            {
-                ShowMediaScreen();
-            }
-
-            // Capture initial normal state
-            // This needs to be done after InitializeComponent and before any potential maximization
-            _normalLeft = this.Left;
-            _normalTop = this.Top;
-            _normalWidth = this.Width;
-            _normalHeight = this.Height;
-
-            // If the window is initialized to be maximized (e.g., from a saved setting),
-            // we need to handle that here. For now, assuming it starts Normal.
-            // If you want to start maximized, you'd call MoveToOppositeScreen() here
-            // and ensure it sets IsMaximizedView = true.
-            // For now, the XAML sets WindowState="Normal", so we'll handle maximization
-            // in Window_Loaded or MaximizeButton_Click.
-
-            if (System.Windows.Forms.Screen.AllScreens.Length > 1)
-            {
-                ShowMediaScreen();
-            }
-
-            _splash.UpdateStatus(TranslationHelper.GetString("Splash_Visualizer", "Preparing Visualizer..."));
-            InitializeVisualizer();
-
-            // Dedicated timer for visualizer (higher frequency for smoothness)
-            visualizerTimer = new DispatcherTimer();
-            visualizerTimer.Interval = TimeSpan.FromMilliseconds(33); // ~30 FPS
-            visualizerTimer.Tick += VisualizerTimer_Tick;
-
-            // Subscribe to playback state changes to keep UI elements in sync
-            PlaybackService.Instance.PlaybackStateChanged += (s, e) =>
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    isPlaying = PlaybackService.Instance.IsPlaying;
-                    UpdatePlayPauseIcon(isPlaying);
-                    if (isPlaying)
-                    {
-                        updateTimer.Start();
-                        visualizerTimer.Start();
-                    }
-                    else
-                    {
-                        updateTimer.Stop();
-                        visualizerTimer.Stop();
-                        ResetVisualizer();
-                    }
-                }));
-
-            // Subscribe to the media player's EndReached event to handle playlist progression
-            if (PlaybackService.Instance.Player != null)
-            {
-                PlaybackService.Instance.Player.EndReached += MediaPlayer_EndReached;
-            }
-
-            updateTimer = new DispatcherTimer();
-            updateTimer.Interval = TimeSpan.FromMilliseconds(100);
-            updateTimer.Tick += UpdateTimer_Tick;
-
-            _splash.UpdateStatus(TranslationHelper.GetString("Splash_Hymns", "Loading Hymn Files..."));
             this.Closing += Main_Closing;
-
-            PlaylistView.ItemsSource = mediaFiles;
-            _ = LoadHymnFilesAsync();
-            FolderExplorer.ItemsSource = HymnFiles;
-            PlaylistView.MouseDoubleClick += PlaylistView_MouseDoubleClick;
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -1465,9 +1398,58 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             }
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
+                        // Capture initial normal state
+            _normalLeft = this.Left;
+            _normalTop = this.Top;
+            _normalWidth = this.Width;
+            _normalHeight = this.Height;
+
+            // Allow the splash screen to animate by yielding the UI thread between setup steps
+            await Task.Yield();
+
+            _splash?.UpdateStatus(TranslationHelper.GetString("Splash_InitUI", "Initializing Monitors..."));
+            InitializeMonitors();
+            await Task.Yield();
+
+            if (System.Windows.Forms.Screen.AllScreens.Length > 1)
+            {
+                ShowMediaScreen();
+                await Task.Yield();
+            }
+
+            _splash?.UpdateStatus(TranslationHelper.GetString("Splash_Visualizer", "Preparing Visualizer..."));
+            InitializeVisualizer();
+            visualizerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+            visualizerTimer.Tick += VisualizerTimer_Tick;
+            await Task.Yield();
+
+            // Setup Timers and Playback Subscriptions
+            updateTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+            updateTimer.Tick += UpdateTimer_Tick;
+
+            PlaybackService.Instance.PlaybackStateChanged += (s, ev) =>
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    isPlaying = PlaybackService.Instance.IsPlaying;
+                    UpdatePlayPauseIcon(isPlaying);
+                    if (isPlaying) { updateTimer.Start(); visualizerTimer.Start(); }
+                    else { updateTimer.Stop(); visualizerTimer.Stop(); ResetVisualizer(); }
+                }));
+
+            if (PlaybackService.Instance.Player != null)
+                PlaybackService.Instance.Player.EndReached += MediaPlayer_EndReached;
+
+            _splash?.UpdateStatus(TranslationHelper.GetString("Splash_Hymns", "Loading Hymn Files..."));
+            await LoadHymnFilesAsync();
+
+            PlaylistView.ItemsSource = mediaFiles;
+            FolderExplorer.ItemsSource = HymnFiles;
+            PlaylistView.MouseDoubleClick += PlaylistView_MouseDoubleClick;
+
             UpdateLibraryTabs();
+            RefreshLibraryList();
             // Ensure volume slider is synced with media player volume
             if (PlaybackService.Instance.Player != null)
                 VolumeSlider.Value = PlaybackService.Instance.Player.Volume;
@@ -1483,9 +1465,6 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             }
             // Update UI text based on current language
             RefreshUIText();
-            
-            // Subscribe to language change events
-            TranslationHelper.LanguageChanged += TranslationHelper_LanguageChanged;
 
             // Close splash screen once everything is settled
             _splash?.Close();

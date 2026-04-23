@@ -343,6 +343,15 @@
                         </StackPanel>
                     </Button>
 
+                    <!-- Updates -->
+                    <Button x:Name="NavUpdates" Click="NavButton_Click"
+                            Style="{DynamicResource SettingsNavButtonStyle}">
+                        <StackPanel Orientation="Horizontal" x:Name="NavUpdatesContent">
+                            <Path Data="{StaticResource UpdateIcon}" Style="{StaticResource NavIconStyle}"/>
+                            <TextBlock VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
                     <!-- About -->
                     <Button x:Name="NavAbout" Click="NavButton_Click"
                             Style="{DynamicResource SettingsNavButtonStyle}">
@@ -630,6 +639,30 @@
                                 BorderBrush="{DynamicResource ItemBorder}" BorderThickness="1">
                             <Image x:Name="BackgroundImagePreview" Width="416" Height="200" Stretch="Uniform"/>
                         </Border>
+                    </StackPanel>
+
+                    <!-- Updates Section -->
+                    <StackPanel x:Name="UpdatesSection" Visibility="Collapsed" Margin="0,0,0,0">
+                        <TextBlock FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8"/>
+                        <TextBlock Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,24" FontSize="14"/>
+
+                        <Button x:Name="CheckUpdatesButton" Click="CheckUpdatesButton_Click"
+                                Style="{StaticResource ModernButtonStyle}"
+                                HorizontalAlignment="Left" Margin="0,0,0,16">
+                            <TextBlock x:Name="CheckUpdatesButtonText" VerticalAlignment="Center"/>
+                        </Button>
+
+                        <TextBlock x:Name="UpdateStatusTextBlock" Foreground="{DynamicResource TextSecondary}" FontSize="14" 
+                                   TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                        <ProgressBar x:Name="UpdateProgressBar" Height="4" Margin="0,0,0,4" Visibility="Collapsed" 
+                                     Background="#20FFFFFF" BorderThickness="0" Minimum="0" Maximum="100">
+                            <ProgressBar.Foreground>
+                                <SolidColorBrush Color="{Binding Source={StaticResource Primary}, Path=Color}"/>
+                            </ProgressBar.Foreground>
+                        </ProgressBar>
+
+                        <TextBlock x:Name="UpdatePercentageTextBlock" Visibility="Collapsed" Foreground="{DynamicResource TextSecondary}" FontSize="12" HorizontalAlignment="Right"/>
                     </StackPanel>
 
                     <!-- About Section -->

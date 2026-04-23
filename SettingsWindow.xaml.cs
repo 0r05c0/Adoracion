@@ -290,6 +290,7 @@ namespace Adoracion
             UpdateNavButtonText(NavScreenSelection, "Nav_ScreenSelection", "Screen Selection");
             UpdateNavButtonText(NavAppearance, "Nav_Appearance", "Appearance");
             UpdateNavButtonText(NavTextWallpaper, "Nav_TextWallpaper", "Text & Wallpaper");
+            UpdateNavButtonText(NavUpdates, "Nav_Updates", "Updates");
             UpdateNavButtonText(NavAbout, "Nav_About", "About");
             
             // Update sidebar logo/title
@@ -322,6 +323,12 @@ namespace Adoracion
 
             UpdateSectionHeader(TextWallpaperSection, "Section_TextWallpaper_Title", "Text & Wallpaper",
                                "Section_TextWallpaper_Description", "Customize the overlay text and background image.");
+
+            UpdateSectionHeader(UpdatesSection, "Section_Updates_Title", "Check for Updates",
+                               "Section_Updates_Description", "Keep Adoracion up to date with the latest features.");
+
+            if (FindName("CheckUpdatesButtonText") is TextBlock lblCheckUpdates)
+                lblCheckUpdates.Text = TranslationHelper.GetString("Button_CheckUpdates", "Check for Updates");
 
             // Update Appearance section labels
             if (FindName("LabelLightMode") is TextBlock lblLightMode)
@@ -555,6 +562,7 @@ namespace Adoracion
             ScreenSelectionSection.Visibility = Visibility.Collapsed;
             AppearanceSection.Visibility = Visibility.Collapsed;
             TextWallpaperSection.Visibility = Visibility.Collapsed;
+            UpdatesSection.Visibility = Visibility.Collapsed;
             AboutSection.Visibility = Visibility.Collapsed;
 
             // Clear selection tags
@@ -563,6 +571,7 @@ namespace Adoracion
             NavScreenSelection.Tag = null;
             NavAppearance.Tag = null;
             NavTextWallpaper.Tag = null;
+            NavUpdates.Tag = null;
             NavAbout.Tag = null;
 
             // Show clicked section and highlight nav button
@@ -591,10 +600,53 @@ namespace Adoracion
                 TextWallpaperSection.Visibility = Visibility.Visible;
                 NavTextWallpaper.Tag = "Selected";
             }
+            else if (btn == NavUpdates)
+            {
+                UpdatesSection.Visibility = Visibility.Visible;
+                NavUpdates.Tag = "Selected";
+            }
             else if (btn == NavAbout)
             {
                 AboutSection.Visibility = Visibility.Visible;
                 NavAbout.Tag = "Selected";
+            }
+        }
+
+        private async void CheckUpdatesButton_Click(object sender, RoutedEventArgs e)
+        {
+            CheckUpdatesButton.IsEnabled = false;
+            await CheckForUpdates();
+            CheckUpdatesButton.IsEnabled = true;
+        }
+
+        public async Task CheckForUpdates()
+        {
+            UpdateStatusTextBlock.Text = TranslationHelper.GetString("Status_CheckingUpdates", "Checking for updates...");
+            var updater = new UpdateCheckerService("0r05c0", "Adoracion", "Adoracion");
+
+            if (await updater.IsUpdateAvailableAsync())
+            {
+                UpdateStatusTextBlock.Text = TranslationHelper.GetString("Status_UpdateFound", "New version found.");
+                
+                UpdateProgressBar.Visibility = Visibility.Visible;
+                UpdatePercentageTextBlock.Visibility = Visibility.Visible;
+                UpdateProgressBar.Value = 0;
+
+                var progress = new Progress<double>(p =>
+                {
+                    UpdateProgressBar.Value = p;
+                    UpdatePercentageTextBlock.Text = $"{TranslationHelper.GetString("Status_Downloading", "Downloading")} {(int)p}%";
+                    if (p >= 100)
+                    {
+                        UpdateStatusTextBlock.Text = TranslationHelper.GetString("Status_InstallingUpdate", "Installing update and restarting...");
+                    }
+                });
+
+                await updater.DownloadAndInstallUpdateAsync(progress);
+            }
+            else
+            {
+                UpdateStatusTextBlock.Text = TranslationHelper.GetString("Status_NoUpdate", "No new version available.");
             }
         }
 

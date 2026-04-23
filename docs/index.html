@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="get-version-number.js"></script>
 </head>
 <body>
     <header>
@@ -32,7 +33,7 @@
         <h1>Multi-Screen Media player for Worship</h1>
         <p>An open-source multimedia player built for seamless presentations, high-performance audio and video, native image rendering.</p>
         <div class="cta">
-            <a href="https://github.com/0r05c0/Adoracion/releases/tag/v0.9.0.1_x64" class="btn primary">Download for Windows (x64)</a>
+            <a href="https://github.com/0r05c0/Adoracion/releases/latest" class="btn primary">Download for Windows</a>
             <a href="https://github.com/0r05c0/Adoracion" class="btn secondary">View Source Code</a>
         </div>
     </section>
@@ -70,10 +71,10 @@
     <section id="download" class="download-section">
         <div class="container">
             <h2>Get Adoracion</h2>
-            <p>Current Version: 0.9.0.1-beta</p>
+            <p>Current Version: <span id="version-number"></span></p>
             <div class="download-links">
-                <a href="https://github.com/0r05c0/Adoracion/releases/tag/v0.9.0.1_x64">Download x64 Installer</a>
-                <a href="https://github.com/0r05c0/Adoracion/releases/tag/v0.9.0.1">Download x86 Installer</a>
+                    <a href="https://github.com/0r05c0/Adoracion/releases/latest">Download <b id="version-link"></b></a>
+                    <a href="https://github.com/0r05c0/Adoracion/releases/tag/nightly">Download beta version</a>
             </div>
         </div>
 

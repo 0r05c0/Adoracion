@@ -47,6 +47,7 @@ jobs:
           --self-contained false `
           -o ./publish/${{ matrix.runtime }} `
           -p:PublishReadyToRun=true `
+          -p:PublishSingleFile=true `
           -p:Version=$ver
         Compress-Archive -Path ./publish/${{ matrix.runtime }}/* -DestinationPath ./publish/Adoracion-${{ matrix.runtime }}.zip
 

@@ -11,7 +11,8 @@
     <Company>Matias Orosco</Company>
     <PackageReadmeFile>README.md</PackageReadmeFile>
 	<!-- Version settings -->
-	  <AssemblyVersion>0.9.0.8</AssemblyVersion>
+	  <AssemblyVersion>0.9.0.9</AssemblyVersion>
+    <AssemblyName>Adoracion</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -46,6 +47,7 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5" />
     <PackageReference Include="SQLite" Version="3.13.0" />
     <PackageReference Include="VideoLAN.LibVLC.Windows.GPL" Version="3.0.23" />
+    <PackageReference Include="Octokit" Version="14.0.0" />
   </ItemGroup>
 
   <ItemGroup>

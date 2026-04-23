@@ -66,6 +66,7 @@ Este proyecto utiliza los siguientes paquetes NuGet. Cada uno es compatible con 
 | VideoLAN.LibVLC.Windows.GPL     | 3.0.23    | GPL v2+         | https://www.gnu.org/licenses/old-licenses/gpl-2.0.html                      |
 | Microsoft.Data.Sqlite           | 10.0.5    | MIT             | https://opensource.org/licenses/MIT                                         |
 | SQLite                          | 3.13.0    | Public Domain   | https://www.sqlite.org/copyright.html                                       |
+| Octokit                         | 13.0.1    | MIT             | https://opensource.org/licenses/MIT                                         |
 
 ### Notas
 

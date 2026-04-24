@@ -99,7 +99,7 @@ namespace Adoracion.Services
                 string absolutePath = Path.GetFullPath(_translationsPath);
                 LoggingService.Instance.Log($"Attempting to load translations from: {absolutePath}");
 
-                if (!File.Exists(_translationsPath))
+                if (!FileService.Instance.FileExists(_translationsPath)) // Use FileService
                 {
                     LoggingService.Instance.Log("FILE NOT FOUND. Falling back to hardcoded defaults.");
                     CreateDefaultTranslations(saveToFile: true);
@@ -107,7 +107,7 @@ namespace Adoracion.Services
                 }
 
                 // Read as bytes to automatically handle BOM (Byte Order Mark) issues
-                byte[] jsonBytes = File.ReadAllBytes(_translationsPath);
+                byte[] jsonBytes = FileService.Instance.ReadAllBytes(_translationsPath); // Use FileService
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
                 var rawTranslations = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(jsonBytes, options);
@@ -233,15 +233,12 @@ namespace Adoracion.Services
         {
             try
             {
-                string directory = Path.GetDirectoryName(_translationsPath);
-                if (!Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
+                string? directory = Path.GetDirectoryName(_translationsPath);
+                if (!string.IsNullOrEmpty(directory)) FileService.Instance.CreateDirectory(directory); // Use FileService
+                
                 var options = new JsonSerializerOptions { WriteIndented = true };
                 string json = JsonSerializer.Serialize(_translations, options);
-                File.WriteAllText(_translationsPath, json, System.Text.Encoding.UTF8);
+                FileService.Instance.WriteAllText(_translationsPath, json); // Use FileService
             }
             catch (Exception ex)
             {

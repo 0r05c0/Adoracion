@@ -684,7 +684,7 @@ namespace Adoracion
         /// </summary>
         public void ShowPlaylistImage(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
+            if (string.IsNullOrEmpty(filePath) || !FileService.Instance.FileExists(filePath)) return; // Use FileService
 
             Dispatcher.Invoke(() =>
             {
@@ -695,7 +695,7 @@ namespace Adoracion
 
         private void TransitionToImage(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            if (string.IsNullOrEmpty(filePath) || !FileService.Instance.FileExists(filePath)) // Use FileService
             {
                 _lastLoadedImage = null;
                 HideBothImages();
@@ -798,7 +798,7 @@ namespace Adoracion
             bool enableBgImage = AppearanceSettings.GetEnableBackgroundImage();
             string imagePath = AppearanceSettings.GetBackgroundImagePath();
 
-            if (enableBgImage && !string.IsNullOrEmpty(imagePath) && File.Exists(imagePath))
+            if (enableBgImage && !string.IsNullOrEmpty(imagePath) && FileService.Instance.FileExists(imagePath)) // Use FileService
             {
                 try
                 {

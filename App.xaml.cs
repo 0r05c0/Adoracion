@@ -1,4 +1,4 @@
-﻿/*
+﻿﻿/*
  * This file is part of the Adoracion project (https://github.com/0r05c0/Adoracion).
  * Copyright (C) 2026 Matias Orosco 
  * 
@@ -53,7 +53,7 @@ namespace Adoracion
                 string themeName = "default";
                 string themeMode = "Dark";
 
-                if (File.Exists(SETTINGS_FILE))
+                if (FileService.Instance.FileExists(SETTINGS_FILE)) // Use FileService
                 {
                     string json = File.ReadAllText(SETTINGS_FILE);
                     using (JsonDocument doc = JsonDocument.Parse(json))
@@ -128,17 +128,17 @@ namespace Adoracion
         private string? ResolveThemePath(string themeName, string themeMode)
         {
             string themesRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Themes", "Color_Themes");
-            if (!Directory.Exists(themesRoot)) return null;
+            if (!FileService.Instance.DirectoryExists(themesRoot)) return null; // Use FileService
 
-            var themeFolders = Directory.GetDirectories(themesRoot);
+            var themeFolders = Directory.GetDirectories(themesRoot); // This is fine, getting folder names
             foreach (var folder in themeFolders)
             {
-                var xamlFiles = Directory.GetFiles(folder, "*.xaml");
-                foreach (var file in xamlFiles)
+                var xamlFiles = FileService.Instance.GetMediaFilesFromDirectory(folder); // Use FileService
+                foreach (var file in xamlFiles.Where(f => FileService.Instance.GetFileExtension(f).Equals(".xaml", StringComparison.OrdinalIgnoreCase)))
                 {
                     // Lightweight check: Avoid creating a ResourceDictionary object which parses the whole XAML tree.
                     // This prevents OutOfMemory exceptions during theme discovery.
-                    string content = File.ReadAllText(file);
+                    string content = FileService.Instance.ReadAllText(file); // Use FileService
                     if (content.Contains($"x:Key=\"ThemeName\">{themeName}<") && 
                         content.Contains($"x:Key=\"ThemeMode\">{themeMode}<"))
                     {

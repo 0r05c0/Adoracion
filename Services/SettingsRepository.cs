@@ -37,9 +37,9 @@ namespace Adoracion.Services
         {
             try
             {
-                if (File.Exists(SettingsPath))
+                if (FileService.Instance.FileExists(SettingsPath)) // Use FileService
                 {
-                    string json = File.ReadAllText(SettingsPath, System.Text.Encoding.UTF8);
+                    string json = FileService.Instance.ReadAllText(SettingsPath); // Use FileService
                     var settings = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
                     if (settings != null)
                     {
@@ -62,7 +62,7 @@ namespace Adoracion.Services
             {
                 var options = new JsonSerializerOptions { WriteIndented = true };
                 string json = JsonSerializer.Serialize(_settings, options);
-                File.WriteAllText(SettingsPath, json, System.Text.Encoding.UTF8);
+                FileService.Instance.WriteAllText(SettingsPath, json); // Use FileService
             }
             catch (Exception ex)
             {

@@ -122,7 +122,8 @@
     "Error_FileNotFound": "The file could not be found at the specified path:",
     "Splash_InitUI": "Initializing UI...",
     "Splash_Visualizer": "Preparing Visualizer...",
-    "Splash_Hymns": "Loading Hymn Files..."
+    "Splash_Hymns": "Loading Hymn Files...",
+    "Menu_OpenInExplorer": "Open in Explorer"
   },
   "es": {
     "__displayName": "Español",

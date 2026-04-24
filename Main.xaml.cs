@@ -54,6 +54,7 @@ namespace Adoracion
         private List<System.Windows.Shapes.Rectangle> visualizerBars = new List<System.Windows.Shapes.Rectangle>();
         private DispatcherTimer visualizerTimer;
         private CancellationTokenSource? _playCts;
+        private CancellationTokenSource? _libraryRefreshCts;
         
         private double _normalLeft;
         private double _normalTop;
@@ -434,7 +435,22 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             LibraryTabs.Items.Clear();
 
             // Fixed Tabs
-            LibraryTabs.Items.Add(new TabItem { Header = TranslationHelper.GetString("Tab_Local", "Local") });
+            var localTab = new TabItem 
+            { 
+                Header = TranslationHelper.GetString("Tab_Local", "Local"),
+                ContextMenu = (ContextMenu)this.FindResource("LocalTabContextMenu")
+            };
+            localTab.PreviewMouseLeftButtonDown += (s, e) => {
+                if (LibraryTabs.SelectedItem == localTab)
+                {
+                    localTab.ContextMenu.PlacementTarget = localTab;
+                    localTab.ContextMenu.DataContext = localTab.DataContext; // Explicitly set DataContext
+                    localTab.ContextMenu.IsOpen = true;
+                    e.Handled = true;
+                }
+            };
+
+            LibraryTabs.Items.Add(localTab);
             LibraryTabs.Items.Add(new TabItem { Header = TranslationHelper.GetString("Tab_Favorites", "Favorites") });
 
             // Custom Tabs from Settings
@@ -470,10 +486,12 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
 
                 if (DriveService.Instance.RemovableDrives.Count > 1)
                 {
-                    var menu = new ContextMenu();
+                    var menu = new ContextMenu { Style = (Style)System.Windows.Application.Current.FindResource("ModernContextMenuStyle") };
                     foreach (var drive in DriveService.Instance.RemovableDrives)
                     {
-                        var mi = new MenuItem { Header = $"{drive.VolumeLabel} ({drive.Name})", IsCheckable = true, IsChecked = drive.Name == DriveService.Instance.SelectedDrive.Name };
+                        var mi = new MenuItem { Header = $"{drive.VolumeLabel} ({drive.Name})", IsCheckable = true, IsChecked = drive.Name == DriveService.Instance.SelectedDrive.Name,
+                                                Style = (Style)System.Windows.Application.Current.FindResource("ModernMenuItemStyle")
+                        };
                         mi.Click += (s, e) => {
                             DriveService.Instance.SelectedDrive = drive;
                             UpdateLibraryTabs();
@@ -616,6 +634,8 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
         {
             try
             {
+                LibraryLoadingState.Visibility = Visibility.Visible;
+
                 var fileList = await FileService.Instance.GetHymnFilesAsync();
                 
                 // Sort by file name after getting the full paths
@@ -631,14 +651,31 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
                         allHymnFiles.Add(filePath);
                         HymnFiles.Add(filePath);
                     }
+                
+                // Set DataContext of the Local tab to the absolute Hymns path (exe location /Hymns)
+                if (LibraryTabs.Items.Count > 0 && LibraryTabs.Items[0] is TabItem local)
+                {
+                    local.DataContext = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Hymns");
+                }
+                LibraryLoadingState.Visibility = Visibility.Collapsed;
                 });
             }
             catch (Exception ex)
             {
                 LoggingService.Instance.Log($"Error loading hymn files: {ex.Message}");
+                Dispatcher.Invoke(() => LibraryLoadingState.Visibility = Visibility.Collapsed);
             }
         }
         
+        private void ListBoxItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is ListBoxItem item && item.ContextMenu != null)
+            {
+                item.ContextMenu.DataContext = item.DataContext;
+                LoggingService.Instance.Log($"ListBoxItem_PreviewMouseRightButtonDown: Setting ContextMenu.DataContext to '{item.DataContext ?? "null"}' for item '{item.DataContext as string ?? "N/A"}'");
+            }
+        }
+
         /// <summary>
         /// Implements Fisher-Yates shuffle to guarantee all songs play once before repeating.
         /// </summary>
@@ -724,47 +761,70 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             }
         }
 
-        private void RefreshLibraryList()
+        private async void RefreshLibraryList()
         {
-            if (FolderFilterBox == null || HymnFiles == null || LibraryTabs == null) return;
+            if (FolderFilterBox == null || HymnFiles == null || LibraryTabs == null || LibraryLoadingState == null) return;
+
+            // Cancel any existing refresh task
+            _libraryRefreshCts?.Cancel();
+            _libraryRefreshCts = new CancellationTokenSource();
+            var token = _libraryRefreshCts.Token;
+
+            LibraryLoadingState.Visibility = Visibility.Visible;
 
             string placeholder = TranslationHelper.GetString("Placeholder_SearchLibrary", "Search library...");
-            string currentText = FolderFilterBox.Text;
-            var filter = (currentText == placeholder) ? string.Empty : currentText.Trim().ToLower();
+            string filter = (FolderFilterBox.Text == placeholder) ? string.Empty : FolderFilterBox.Text.Trim().ToLower();
 
-            IEnumerable<string> source = Enumerable.Empty<string>();
             int selectedIndex = LibraryTabs.SelectedIndex;
+            TabItem? selectedTab = LibraryTabs.SelectedItem as TabItem;
+
+            // CRITICAL: Capture necessary data on the UI thread before starting the background task.
+            // Accessing selectedTab.Tag or allHymnFiles inside Task.Run causes cross-thread exceptions.
+            string? directoryPath = selectedTab?.Tag as string;
+            List<string> localFilesSnapshot = allHymnFiles.ToList();
+            List<string> favoritesSnapshot = FavoritesService.GetFavorites().ToList();
 
             try
             {
-                if (selectedIndex == 0) // Local
+                var filteredList = await Task.Run(() =>
                 {
-                    source = allHymnFiles; 
-                }
-                else if (selectedIndex == 1) // Favorites
-                {
-                    source = FavoritesService.GetFavorites();
-                }
-                else if (selectedIndex > 1 && LibraryTabs.SelectedItem is TabItem tab)
-                {
-                    string? path = tab.Tag as string;
-                    if (!string.IsNullOrEmpty(path))
-                    {
-                        source = FileService.Instance.GetMediaFilesFromDirectory(path, recursive: true);
-                    }
-                }
+                    if (token.IsCancellationRequested) return new List<string>();
 
-                var filteredList = source.Where(f => string.IsNullOrEmpty(filter) || FileService.Instance.GetFileName(f).ToLower().Contains(filter)).ToList();
-                filteredList.Sort((s1, s2) => StrCmpLogicalW(FileService.Instance.GetFileName(s1), FileService.Instance.GetFileName(s2)));
+                    IEnumerable<string> source = Enumerable.Empty<string>();
+                    if (selectedIndex == 0) // Local
+                    {
+                        source = localFilesSnapshot; 
+                    }
+                    else if (selectedIndex == 1) // Favorites
+                    {
+                        source = favoritesSnapshot;
+                    }
+                    else if (selectedIndex > 1 && !string.IsNullOrEmpty(directoryPath))
+                    {
+                        source = FileService.Instance.GetMediaFilesFromDirectory(directoryPath, recursive: true);
+                    }
+
+                    var filtered = source.Where(f => string.IsNullOrEmpty(filter) || FileService.Instance.GetFileName(f).ToLower().Contains(filter)).ToList();
+                    filtered.Sort((s1, s2) => StrCmpLogicalW(FileService.Instance.GetFileName(s1), FileService.Instance.GetFileName(s2)));
+                    return filtered;
+                }, token);
+
+                if (token.IsCancellationRequested) return;
 
                 HymnFiles.Clear();
                 foreach (var filePath in filteredList)
                     HymnFiles.Add(filePath);
             }
+            catch (OperationCanceledException) { /* Task was superseded */ }
             catch (Exception ex)
             {
                 LoggingService.Instance.Log($"RefreshLibraryList failed: {ex.Message}");
                 HymnFiles.Clear();
+            }
+            finally
+            {
+                if (!token.IsCancellationRequested)
+                    LibraryLoadingState.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -820,6 +880,34 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             if (sender is System.Windows.Controls.Button btn && btn.DataContext is string filePath) // filePath is now the full path
             {
                 await PlayLibraryFileAsync(filePath);
+            }
+        }
+
+        private void OpenHymnsFolder_Click(object sender, RoutedEventArgs e)
+        {
+            // Hardcoded fallback for the Local tab to ensure it works immediately
+            string hymnsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Hymns");
+
+            // Edge case: If the user deleted the folder while the app was open, recreate it now
+            if (!FileService.Instance.DirectoryExists(hymnsPath))
+            {
+                LoggingService.Instance.Log($"OpenHymnsFolder_Click: Folder missing, recreating: {hymnsPath}");
+                FileService.Instance.CreateDirectory(hymnsPath);
+            }
+
+            LoggingService.Instance.Log($"OpenHymnsFolder_Click: Opening hardcoded path: {hymnsPath}");
+            FileService.Instance.OpenInExplorer(hymnsPath);
+        }
+
+        private void OpenInExplorer_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem)
+            {
+                string? filePath = menuItem.DataContext as string;
+                LoggingService.Instance.Log($"OpenInExplorer_Click: MenuItem.DataContext is '{filePath ?? "null"}'");
+
+                // FilePath should now be correctly set by the ContextMenu's DataContext
+                FileService.Instance.OpenInExplorer(filePath);
             }
         }
 

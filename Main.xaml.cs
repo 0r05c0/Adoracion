@@ -434,7 +434,22 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             LibraryTabs.Items.Clear();
 
             // Fixed Tabs
-            LibraryTabs.Items.Add(new TabItem { Header = TranslationHelper.GetString("Tab_Local", "Local") });
+            var localTab = new TabItem 
+            { 
+                Header = TranslationHelper.GetString("Tab_Local", "Local"),
+                ContextMenu = (ContextMenu)this.FindResource("LocalTabContextMenu")
+            };
+            localTab.PreviewMouseLeftButtonDown += (s, e) => {
+                if (LibraryTabs.SelectedItem == localTab)
+                {
+                    localTab.ContextMenu.PlacementTarget = localTab;
+                    localTab.ContextMenu.DataContext = localTab.DataContext; // Explicitly set DataContext
+                    localTab.ContextMenu.IsOpen = true;
+                    e.Handled = true;
+                }
+            };
+
+            LibraryTabs.Items.Add(localTab);
             LibraryTabs.Items.Add(new TabItem { Header = TranslationHelper.GetString("Tab_Favorites", "Favorites") });
 
             // Custom Tabs from Settings
@@ -631,6 +646,12 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
                         allHymnFiles.Add(filePath);
                         HymnFiles.Add(filePath);
                     }
+                
+                // Set DataContext of the Local tab to the absolute Hymns path (exe location /Hymns)
+                if (LibraryTabs.Items.Count > 0 && LibraryTabs.Items[0] is TabItem local)
+                {
+                    local.DataContext = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Hymns");
+                }
                 });
             }
             catch (Exception ex)
@@ -639,6 +660,15 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             }
         }
         
+        private void ListBoxItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is ListBoxItem item && item.ContextMenu != null)
+            {
+                item.ContextMenu.DataContext = item.DataContext;
+                LoggingService.Instance.Log($"ListBoxItem_PreviewMouseRightButtonDown: Setting ContextMenu.DataContext to '{item.DataContext ?? "null"}' for item '{item.DataContext as string ?? "N/A"}'");
+            }
+        }
+
         /// <summary>
         /// Implements Fisher-Yates shuffle to guarantee all songs play once before repeating.
         /// </summary>
@@ -820,6 +850,26 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             if (sender is System.Windows.Controls.Button btn && btn.DataContext is string filePath) // filePath is now the full path
             {
                 await PlayLibraryFileAsync(filePath);
+            }
+        }
+
+        private void OpenHymnsFolder_Click(object sender, RoutedEventArgs e)
+        {
+            // Hardcoded fallback for the Local tab to ensure it works immediately
+            string hymnsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Hymns");
+            LoggingService.Instance.Log($"OpenHymnsFolder_Click: Opening hardcoded path: {hymnsPath}");
+            FileService.Instance.OpenInExplorer(hymnsPath);
+        }
+
+        private void OpenInExplorer_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem)
+            {
+                string? filePath = menuItem.DataContext as string;
+                LoggingService.Instance.Log($"OpenInExplorer_Click: MenuItem.DataContext is '{filePath ?? "null"}'");
+
+                // FilePath should now be correctly set by the ContextMenu's DataContext
+                FileService.Instance.OpenInExplorer(filePath);
             }
         }
 

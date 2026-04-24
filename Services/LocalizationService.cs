@@ -215,7 +215,8 @@ namespace Adoracion.Services
                         { "Label_FavoritesEmpty", "Your favorites list is empty." },
                         { "Splash_InitUI", "Initializing UI..." },
                         { "Splash_Visualizer", "Preparing Visualizer..." },
-                        { "Splash_Hymns", "Loading Hymn Files..." }
+                        { "Splash_Hymns", "Loading Hymn Files..." },
+                        { "Menu_OpenInExplorer", "Open in File Explorer" }
                     }
                 }
             };

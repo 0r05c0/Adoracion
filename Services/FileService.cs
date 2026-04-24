@@ -11,6 +11,7 @@
  */
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -55,6 +56,49 @@ namespace Adoracion.Services
             return Path.GetExtension(filePath);
         }
 
+        public void OpenInExplorer(string? filePath)
+        {
+            LoggingService.Instance.Log($"OpenInExplorer: Request received for path: '{filePath ?? "null"}'");
+
+            if (string.IsNullOrEmpty(filePath))
+            {
+                LoggingService.Instance.Log("OpenInExplorer: Path is null or empty. Operation cancelled.");
+                return;
+            }
+
+            try
+            {
+                var startInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    UseShellExecute = true
+                };
+
+                if (DirectoryExists(filePath))
+                {
+                    LoggingService.Instance.Log($"OpenInExplorer: Path identified as directory: {filePath}");
+                    startInfo.Arguments = $"\"{filePath}\"";
+                }
+                else if (FileExists(filePath))
+                {
+                    LoggingService.Instance.Log($"OpenInExplorer: Path identified as file: {filePath}");
+                    startInfo.Arguments = $"/select,\"{filePath}\"";
+                }
+                else 
+                {
+                    LoggingService.Instance.Log($"OpenInExplorer: Operation failed. Path does not exist on disk: {filePath}");
+                    return;
+                }
+
+                LoggingService.Instance.Log($"OpenInExplorer: Executing explorer.exe with args: {startInfo.Arguments}");
+                System.Diagnostics.Process.Start(startInfo);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Instance.Log($"Error opening explorer: {ex.Message}");
+            }
+        }
+
         public string CombinePath(params string[] paths)
         {
             if (paths == null || paths.Length == 0) return string.Empty;
@@ -65,8 +109,12 @@ namespace Adoracion.Services
         {
             return await Task.Run(() =>
             {
-                string hymnsPath = CombinePath(Directory.GetCurrentDirectory(), "Hymns");
-                if (!DirectoryExists(hymnsPath)) return new List<string>();
+                string hymnsPath = CombinePath(AppDomain.CurrentDomain.BaseDirectory, "Hymns");
+                if (!DirectoryExists(hymnsPath))
+                {
+                    CreateDirectory(hymnsPath);
+                    return new List<string>();
+                }
 
                 var files = Directory.GetFiles(hymnsPath)
                     .Where(f => MediaHelper.AllAllowedExtensions.Contains(GetFileExtension(f).ToLower()));

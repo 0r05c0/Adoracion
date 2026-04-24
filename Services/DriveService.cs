@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Windows.Interop;
 
 namespace Adoracion.Services
 {
@@ -21,6 +22,12 @@ namespace Adoracion.Services
         private static readonly Lazy<DriveService> _instance = new(() => new DriveService());
         public static DriveService Instance => _instance.Value;
 
+        private const int WM_DEVICECHANGE = 0x0219;
+        private const int DBT_DEVICEARRIVAL = 0x8000;
+        private const int DBT_DEVICEREMOVECOMPLETE = 0x8004;
+
+        public event Action<bool>? DriveChanged;
+
         private List<DriveInfo> _removableDrives = new();
         public IReadOnlyList<DriveInfo> RemovableDrives => _removableDrives;
         public DriveInfo? SelectedDrive { get; set; }
@@ -28,6 +35,28 @@ namespace Adoracion.Services
         private DriveService() 
         {
             RefreshDrives();
+        }
+
+        /// <summary>
+        /// Attaches a hook to the provided HwndSource to listen for hardware changes.
+        /// </summary>
+        public void Initialize(HwndSource source)
+        {
+            source.AddHook(HwndMessageHook);
+        }
+
+        private IntPtr HwndMessageHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WM_DEVICECHANGE)
+            {
+                int action = wParam.ToInt32();
+                if (action == DBT_DEVICEARRIVAL || action == DBT_DEVICEREMOVECOMPLETE)
+                {
+                    RefreshDrives();
+                    DriveChanged?.Invoke(action == DBT_DEVICEARRIVAL);
+                }
+            }
+            return IntPtr.Zero;
         }
 
         public void RefreshDrives()

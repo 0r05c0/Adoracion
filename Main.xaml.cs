@@ -101,35 +101,27 @@ namespace Adoracion
         {
             base.OnSourceInitialized(e);
             HwndSource? source = PresentationSource.FromVisual(this) as HwndSource;
-            source?.AddHook(WndProc);
+            if (source != null)
+            {
+                DriveService.Instance.Initialize(source);
+                DriveService.Instance.DriveChanged += OnDriveChanged;
+            }
             DriveService.Instance.RefreshDrives();
         }
 
-        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        private void OnDriveChanged(bool isArrival)
         {
-            const int WM_DEVICECHANGE = 0x0219;
-            const int DBT_DEVICEARRIVAL = 0x8000;
-            const int DBT_DEVICEREMOVECOMPLETE = 0x8004;
-
-            if (msg == WM_DEVICECHANGE)
+            Dispatcher.BeginInvoke(new Action(() =>
             {
-                int action = wParam.ToInt32();
-                if (action == DBT_DEVICEARRIVAL || action == DBT_DEVICEREMOVECOMPLETE)
-                {
-                    Dispatcher.BeginInvoke(new Action(() => {
-                        DriveService.Instance.RefreshDrives();
-                        UpdateLibraryTabs();
-                        RefreshLibraryList();
+                UpdateLibraryTabs();
+                RefreshLibraryList();
 
-                        // Auto-select the USB tab when a device is connected
-                        if (action == DBT_DEVICEARRIVAL && DriveService.Instance.SelectedDrive != null)
-                        {
-                            LibraryTabs.SelectedIndex = LibraryTabs.Items.Count - 1;
-                        }
-                    }));
+                // Auto-select the USB tab when a device is connected
+                if (isArrival && DriveService.Instance.SelectedDrive != null)
+                {
+                    LibraryTabs.SelectedIndex = LibraryTabs.Items.Count - 1;
                 }
-            }
-            return IntPtr.Zero;
+            }));
         }
 
         private void InitializeMonitors()

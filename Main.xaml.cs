@@ -1,4 +1,4 @@
-﻿/*
+﻿﻿/*
  * This file is part of the Adoracion project (https://github.com/0r05c0/Adoracion).
  * Copyright (C) 2026 Matias Orosco 
  * 
@@ -485,10 +485,12 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
 
                 if (DriveService.Instance.RemovableDrives.Count > 1)
                 {
-                    var menu = new ContextMenu();
+                    var menu = new ContextMenu { Style = (Style)System.Windows.Application.Current.FindResource("ModernContextMenuStyle") };
                     foreach (var drive in DriveService.Instance.RemovableDrives)
                     {
-                        var mi = new MenuItem { Header = $"{drive.VolumeLabel} ({drive.Name})", IsCheckable = true, IsChecked = drive.Name == DriveService.Instance.SelectedDrive.Name };
+                        var mi = new MenuItem { Header = $"{drive.VolumeLabel} ({drive.Name})", IsCheckable = true, IsChecked = drive.Name == DriveService.Instance.SelectedDrive.Name,
+                                                Style = (Style)System.Windows.Application.Current.FindResource("ModernMenuItemStyle")
+                        };
                         mi.Click += (s, e) => {
                             DriveService.Instance.SelectedDrive = drive;
                             UpdateLibraryTabs();

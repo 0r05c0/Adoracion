@@ -9,7 +9,6 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -63,9 +62,6 @@ namespace Adoracion
 
         private bool ShouldCrossfade => CrossfadeToggle?.IsChecked == true && isPlaying && !isTransitioning;
 
-        private List<DriveInfo> _removableDrives = new List<DriveInfo>();
-        private DriveInfo? _selectedFlashDrive;
-
         public static readonly DependencyProperty IsMaximizedViewProperty =
             DependencyProperty.Register("IsMaximizedView", typeof(bool), typeof(Main), new PropertyMetadata(false));
 
@@ -82,6 +78,7 @@ namespace Adoracion
         private int _shuffleQueuePointer = -1;
 
         public ObservableCollection<string> HymnFiles { get; set; } = new ObservableCollection<string>();
+        // This list will now store full paths
         private List<string> allHymnFiles = new List<string>();
 
         public Main()
@@ -104,36 +101,27 @@ namespace Adoracion
         {
             base.OnSourceInitialized(e);
             HwndSource? source = PresentationSource.FromVisual(this) as HwndSource;
-            source?.AddHook(WndProc);
-            UpdateRemovableDrives();
-        }
-
-        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
-        {
-            const int WM_DEVICECHANGE = 0x0219;
-            const int DBT_DEVICEARRIVAL = 0x8000;
-            const int DBT_DEVICEREMOVECOMPLETE = 0x8004;
-
-            if (msg == WM_DEVICECHANGE)
+            if (source != null)
             {
-                int action = wParam.ToInt32();
-                if (action == DBT_DEVICEARRIVAL || action == DBT_DEVICEREMOVECOMPLETE)
-                {
-                    Dispatcher.BeginInvoke(new Action(() => {
-                        UpdateRemovableDrives();
-                        UpdateLibraryTabs();
-                        RefreshLibraryList();
-                    }));
-                }
+                DriveService.Instance.Initialize(source);
+                DriveService.Instance.DriveChanged += OnDriveChanged;
             }
-            return IntPtr.Zero;
+            DriveService.Instance.RefreshDrives();
         }
 
-        private void UpdateRemovableDrives()
+        private void OnDriveChanged(bool isArrival)
         {
-            _removableDrives = DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Removable && d.IsReady).ToList();
-            if (_selectedFlashDrive != null && !_removableDrives.Any(d => d.Name == _selectedFlashDrive.Name)) _selectedFlashDrive = null;
-            if (_selectedFlashDrive == null && _removableDrives.Any()) _selectedFlashDrive = _removableDrives.First();
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                UpdateLibraryTabs();
+                RefreshLibraryList();
+
+                // Auto-select the USB tab when a device is connected
+                if (isArrival && DriveService.Instance.SelectedDrive != null)
+                {
+                    LibraryTabs.SelectedIndex = LibraryTabs.Items.Count - 1;
+                }
+            }));
         }
 
         private void InitializeMonitors()
@@ -471,33 +459,33 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             catch { }
 
             // Add Flash Drive Tab if available
-            if (_selectedFlashDrive != null)
+            if (DriveService.Instance.SelectedDrive != null)
             {
                 var usbTab = new TabItem
                 {
                     Header = CreateUSBHeader(),
-                    Tag = _selectedFlashDrive.RootDirectory.FullName,
-                    ToolTip = $"{_selectedFlashDrive.VolumeLabel} ({_selectedFlashDrive.Name})"
+                    Tag = DriveService.Instance.SelectedDrive.RootDirectory.FullName,
+                    ToolTip = $"{DriveService.Instance.SelectedDrive.VolumeLabel} ({DriveService.Instance.SelectedDrive.Name})"
                 };
 
-                if (_removableDrives.Count > 1)
+                if (DriveService.Instance.RemovableDrives.Count > 1)
                 {
                     var menu = new ContextMenu();
-                    foreach (var drive in _removableDrives)
+                    foreach (var drive in DriveService.Instance.RemovableDrives)
                     {
-                        var mi = new MenuItem { Header = $"{drive.VolumeLabel} ({drive.Name})", IsCheckable = true, IsChecked = drive.Name == _selectedFlashDrive.Name };
+                        var mi = new MenuItem { Header = $"{drive.VolumeLabel} ({drive.Name})", IsCheckable = true, IsChecked = drive.Name == DriveService.Instance.SelectedDrive.Name };
                         mi.Click += (s, e) => {
-                            _selectedFlashDrive = drive;
+                            DriveService.Instance.SelectedDrive = drive;
                             UpdateLibraryTabs();
                             foreach (TabItem item in LibraryTabs.Items)
-                                if (item.Tag?.ToString() == _selectedFlashDrive.RootDirectory.FullName) { LibraryTabs.SelectedItem = item; break; }
+                                if (item.Tag?.ToString() == DriveService.Instance.SelectedDrive.RootDirectory.FullName) { LibraryTabs.SelectedItem = item; break; }
                             RefreshLibraryList();
                         };
                         menu.Items.Add(mi);
                     }
                     usbTab.ContextMenu = menu;
                     usbTab.PreviewMouseLeftButtonDown += (s, e) => {
-                        if (LibraryTabs.SelectedItem == usbTab && _removableDrives.Count > 1)
+                    if (LibraryTabs.SelectedItem == usbTab && DriveService.Instance.RemovableDrives.Count > 1)
                         {
                             usbTab.ContextMenu.IsOpen = true;
                             e.Handled = true;
@@ -626,29 +614,29 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
 
         private async Task LoadHymnFilesAsync()
         {
-            var fileList = await Task.Run(() =>
+            try
             {
-                string hymnsPath = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "Hymns");
-                if (!Directory.Exists(hymnsPath)) return new List<string>();
-
-                var files = Directory.GetFiles(hymnsPath)
-                    .Where(f => MediaHelper.AllAllowedExtensions.Contains(System.IO.Path.GetExtension(f).ToLower()));
-
-                var list = files.Select(f => System.IO.Path.GetFileName(f)).Cast<string>().ToList();
-                list.Sort(StrCmpLogicalW);
-                return list;
-            });
-
-            Dispatcher.Invoke(() =>
-            {
-                HymnFiles.Clear(); // This line is already present, no change needed.
-                allHymnFiles.Clear();
-                foreach (var fileName in fileList)
+                var fileList = await FileService.Instance.GetHymnFilesAsync();
+                
+                // Sort by file name after getting the full paths
+                var list = fileList.Select(f => FileService.Instance.GetFileName(f)).ToList();
+                list.Sort((s1, s2) => StrCmpLogicalW(s1, s2));
+                // Re-map to full paths for allHymnFiles
+                fileList = fileList.OrderBy(f => FileService.Instance.GetFileName(f), new NaturalStringComparer()).ToList();                Dispatcher.Invoke(() =>
                 {
-                    allHymnFiles.Add(fileName);
-                    HymnFiles.Add(fileName);
-                }
-            });
+                    HymnFiles.Clear();
+                    allHymnFiles.Clear();
+                    foreach (var filePath in fileList)
+                    {
+                        allHymnFiles.Add(filePath);
+                        HymnFiles.Add(filePath);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Instance.Log($"Error loading hymn files: {ex.Message}");
+            }
         }
         
         /// <summary>
@@ -747,52 +735,43 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             IEnumerable<string> source = Enumerable.Empty<string>();
             int selectedIndex = LibraryTabs.SelectedIndex;
 
-            if (selectedIndex == 0) // Local
+            try
             {
-                source = allHymnFiles;
-            }
-            else if (selectedIndex == 1) // Favorites
-            {
-                source = FavoritesService.GetFavorites().Select(System.IO.Path.GetFileName).Where(x => x != null).Cast<string>();
-            }
-            else if (selectedIndex > 1 && LibraryTabs.SelectedItem is TabItem tab)
-            {
-                string path = tab.Tag as string;
-                if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+                if (selectedIndex == 0) // Local
                 {
-                    source = Directory.GetFiles(path)
-                        .Where(f => MediaHelper.AllAllowedExtensions.Contains(System.IO.Path.GetExtension(f).ToLower()))
-                        .Select(System.IO.Path.GetFileName)
-                        .Cast<string>();
+                    source = allHymnFiles; 
                 }
+                else if (selectedIndex == 1) // Favorites
+                {
+                    source = FavoritesService.GetFavorites();
+                }
+                else if (selectedIndex > 1 && LibraryTabs.SelectedItem is TabItem tab)
+                {
+                    string? path = tab.Tag as string;
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        source = FileService.Instance.GetMediaFilesFromDirectory(path, recursive: true);
+                    }
+                }
+
+                var filteredList = source.Where(f => string.IsNullOrEmpty(filter) || FileService.Instance.GetFileName(f).ToLower().Contains(filter)).ToList();
+                filteredList.Sort((s1, s2) => StrCmpLogicalW(FileService.Instance.GetFileName(s1), FileService.Instance.GetFileName(s2)));
+
+                HymnFiles.Clear();
+                foreach (var filePath in filteredList)
+                    HymnFiles.Add(filePath);
             }
-
-            var filteredList = source.Where(f => string.IsNullOrEmpty(filter) || f.ToLower().Contains(filter)).ToList();
-            filteredList.Sort(StrCmpLogicalW);
-
-            HymnFiles.Clear();
-            foreach (var file in filteredList)
-                HymnFiles.Add(file);
+            catch (Exception ex)
+            {
+                LoggingService.Instance.Log($"RefreshLibraryList failed: {ex.Message}");
+                HymnFiles.Clear();
+            }
         }
 
         private async void FolderExplorer_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (FolderExplorer.SelectedItem is string fileName)
+            if (FolderExplorer.SelectedItem is string filePath) // filePath is already the full path
             {
-                string filePath = "";
-                if (LibraryTabs.SelectedIndex == 1) // Favorites
-                {
-                    filePath = FavoritesService.GetFavorites().FirstOrDefault(f => System.IO.Path.GetFileName(f) == fileName) ?? "";
-                }
-                else
-                {
-                    string basePath = (LibraryTabs.SelectedIndex > 1) 
-                        ? (LibraryTabs.SelectedItem as TabItem)?.Tag as string ?? ""
-                        : System.IO.Path.Combine(Directory.GetCurrentDirectory(), "Hymns");
-                    
-                    filePath = System.IO.Path.Combine(basePath, fileName);
-                }
-
                 if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
 
                 if (!mediaFiles.Any(m => m.FilePath == filePath))
@@ -800,7 +779,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
                                 MediaFile file = new MediaFile
                                 {
                                     FilePath = filePath,
-                                    Name = fileName,                                    
+                                    Name = FileService.Instance.GetFileName(filePath), // Get file name from full path
                                     Duration = "", // Initialize as empty
                                     Index = mediaFiles.Count + 1,
                                     Type = MediaHelper.DetermineMediaType(filePath), // Set media type here
@@ -810,7 +789,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
                                         
                                 // If the file is an audio or video, get its duration. Use _mediaExtensionsWithDuration.
                                 if (MediaHelper.MediaWithDurationExtensions.Any(ext => filePath.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
-                                {
+                                { // This block is duplicated in GetOrAddLibraryFileAsync, consider refactoring
                                     var media = new Media(PlaybackService.Instance.LibVLC!, filePath, FromType.FromPath);
                                     var result = await media.Parse(MediaParseOptions.ParseLocal);
                                     using (media) 
@@ -830,17 +809,17 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
 
         private async void LibraryAddButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is System.Windows.Controls.Button btn && btn.DataContext is string fileName)
+            if (sender is System.Windows.Controls.Button btn && btn.DataContext is string filePath) // filePath is now the full path
             {
-                await GetOrAddLibraryFileAsync(fileName);
+                await GetOrAddLibraryFileAsync(filePath);
             }
         }
 
         private async void LibraryPlayButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is System.Windows.Controls.Button btn && btn.DataContext is string fileName)
+            if (sender is System.Windows.Controls.Button btn && btn.DataContext is string filePath) // filePath is now the full path
             {
-                await PlayLibraryFileAsync(fileName);
+                await PlayLibraryFileAsync(filePath);
             }
         }
 
@@ -848,9 +827,9 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
         /// Shared logic to resolve a library filename to a path, add it to playlist if missing, 
         /// and trigger immediate playback (with crossfade support).
         /// </summary>
-        private async Task PlayLibraryFileAsync(string fileName)
+        private async Task PlayLibraryFileAsync(string filePath) // Parameter is now full path
         {
-            var fileToPlay = await GetOrAddLibraryFileAsync(fileName);
+            var fileToPlay = await GetOrAddLibraryFileAsync(filePath);
             if (fileToPlay == null) return;
 
             // Images should bypass crossfade logic as they have no audio and 
@@ -874,22 +853,12 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
         /// Resolves a library filename and adds it to the playlist collection if it's not already there.
         /// Returns the MediaFile object for further actions (like playback).
         /// </summary>
-        private async Task<MediaFile?> GetOrAddLibraryFileAsync(string fileName)
+        private async Task<MediaFile?> GetOrAddLibraryFileAsync(string filePath) // Parameter is now full path
         {
-            LoggingService.Instance.Log($"GetOrAddLibraryFileAsync: Entry for {fileName}");
-            string filePath = "";
-            if (LibraryTabs.SelectedIndex == 1) // Favorites
-            {
-                filePath = FavoritesService.GetFavorites().FirstOrDefault(f => System.IO.Path.GetFileName(f) == fileName) ?? "";
-            }
-            else
-            {
-                string basePath = (LibraryTabs.SelectedIndex > 1)
-                    ? (LibraryTabs.SelectedItem as TabItem)?.Tag as string ?? ""
-                    : System.IO.Path.Combine(Directory.GetCurrentDirectory(), "Hymns");
+            LoggingService.Instance.Log($"GetOrAddLibraryFileAsync: Entry for {filePath}");
+            // filePath is already the full path, no need to construct it.
+            // The `fileName` variable is no longer needed here.
 
-                filePath = System.IO.Path.Combine(basePath, fileName);
-            }
 
             if (string.IsNullOrEmpty(filePath)) return null;
             
@@ -908,7 +877,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
                 fileToPlay = new MediaFile
                 {
                     FilePath = filePath,
-                    Name = fileName,
+                    Name = FileService.Instance.GetFileName(filePath), // Get file name from full path
                     Duration = TranslationHelper.GetString("Time_Format", "--:--"),
                     Index = mediaFiles.Count + 1, // Set media type here
                     Type = MediaHelper.DetermineMediaType(filePath),
@@ -917,26 +886,28 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
 
                 if (MediaHelper.MediaWithDurationExtensions.Any(ext => filePath.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
                 {
-                    var media = new Media(PlaybackService.Instance.LibVLC!, filePath, FromType.FromPath);
-                    LoggingService.Instance.Log($"Parsing media for duration: {fileName}");
-                    var result = await media.Parse(MediaParseOptions.ParseLocal);
-                    
-                    using (media)
+                    try
                     {
-                        if (result != MediaParsedStatus.Done)
-                        {
-                            LoggingService.Instance.Log($"Warning: Media parsing status for {fileName} was {result}");
-                        }
+                        var media = new Media(PlaybackService.Instance.LibVLC!, filePath, FromType.FromPath);
+                        LoggingService.Instance.Log($"Parsing media for duration: {FileService.Instance.GetFileName(filePath)}");
+                        var result = await media.Parse(MediaParseOptions.ParseLocal);
 
-                        if (result == MediaParsedStatus.Done && media.Duration > 0)
+                        using (media)
                         {
-                            fileToPlay.Duration = FormatTime(TimeSpan.FromMilliseconds(media.Duration));
+                            if (result == MediaParsedStatus.Done && media.Duration > 0)
+                            {
+                                fileToPlay.Duration = FormatTime(TimeSpan.FromMilliseconds(media.Duration));
+                            }
                         }
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggingService.Instance.Log($"Error parsing media duration for {FileService.Instance.GetFileName(filePath)}: {ex.Message}");
                     }
                 }
                 mediaFiles.Add(fileToPlay);
             }
-            LoggingService.Instance.Log($"GetOrAddLibraryFileAsync: Exit for {fileName}, returning {fileToPlay?.Name}");
+            LoggingService.Instance.Log($"GetOrAddLibraryFileAsync: Exit for {Path.GetFileName(filePath)}, returning {fileToPlay?.Name}");
             return fileToPlay;
         }        
 
@@ -957,7 +928,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
 
         private void ToggleFavorite_Click(object sender, RoutedEventArgs e)
         {
-            if ((sender as System.Windows.Controls.Button)?.DataContext is MediaFile file)
+            if ((sender as System.Windows.Controls.Button)?.DataContext is MediaFile file) // DataContext is MediaFile, not string
             {                
                 file.IsFavorite = !file.IsFavorite; // Toggle the property first
 
@@ -1125,7 +1096,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
                 if (file == null && mediaFiles.Count > 0)
                 {
                     file = mediaFiles[0];
-                    PlaylistView.SelectedItem = file;
+                    PlaylistView.SelectedItem = file; // This line is duplicated below, consider removing.
                 }
 
                 if (file != null)
@@ -1133,7 +1104,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
                     if (File.Exists(file.FilePath))
                     {
                         file.IsMissing = false;
-                        currentPlaylistIndex = mediaFiles.IndexOf(file);
+                        currentPlaylistIndex = mediaFiles.IndexOf(file); // This line is duplicated above, consider removing.
                         PlayMediaFile(file);
                     }
                     else
@@ -1184,7 +1155,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             _playCts = cts;
 
             LoggingService.Instance.Log($"PlayMediaFile triggered for: {file.Name}");
-            if (!File.Exists(file.FilePath))
+            if (!FileService.Instance.FileExists(file.FilePath))
             {
                 file.IsMissing = true;
                 LoggingService.Instance.Log($"ERROR: File does not exist at path: {file.FilePath}");
@@ -1898,8 +1869,8 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
         public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             if (value is string fileName && !string.IsNullOrEmpty(fileName))
-            {
-                return System.IO.Path.GetFileNameWithoutExtension(fileName);
+            { // Use FileService for consistency
+                return FileService.Instance.GetFileNameWithoutExtension(fileName);
             }
             return value;
         }
@@ -1908,5 +1879,21 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
         {
             throw new System.NotImplementedException();
         }
+    }
+
+    /// <summary>
+    /// Converts a full file path to just the file name (including extension).
+    /// </summary>
+    public class FileNameConverter : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is string filePath && !string.IsNullOrEmpty(filePath))
+            { // Use FileService for consistency
+                return FileService.Instance.GetFileName(filePath);
+            }
+            return value;
+        }
+        public object ConvertBack(object value, System.Type targetType, object parameter, System.Globalization.CultureInfo culture) => throw new System.NotImplementedException();
     }
 }

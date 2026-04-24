@@ -108,8 +108,8 @@ namespace Adoracion
                 if (paths != null)
                 {
                     foreach (var path in paths)
-                    {
-                        int count = Directory.Exists(path) ? Directory.GetFiles(path).Length : 0;
+                    { // Use FileService
+                        int count = FileService.Instance.DirectoryExists(path) ? FileService.Instance.GetFileCountInDirectory(path) : 0;
                         folders.Add(new MediaFolder { Path = path, Count = count });
                     }
                 }
@@ -159,13 +159,13 @@ namespace Adoracion
         {
             var list = new List<ThemeMetadata>();
             string themesRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Themes", "Color_Themes");
-            if (!Directory.Exists(themesRoot)) return list;
+            if (!FileService.Instance.DirectoryExists(themesRoot)) return list; // Use FileService
 
-            var themeFolders = Directory.GetDirectories(themesRoot);
+            var themeFolders = Directory.GetDirectories(themesRoot); // This is fine, getting folder names
             foreach (var folder in themeFolders)
             {
-                var xamlFiles = Directory.GetFiles(folder, "*.xaml");
-                foreach (var file in xamlFiles)
+                var xamlFiles = FileService.Instance.GetMediaFilesFromDirectory(folder); // Use FileService
+                foreach (var file in xamlFiles.Where(f => FileService.Instance.GetFileExtension(f).Equals(".xaml", StringComparison.OrdinalIgnoreCase)))
                 {
                     try
                     {
@@ -173,7 +173,7 @@ namespace Adoracion
                         string content = File.ReadAllText(file);
                         if (content.Contains("x:Key=\"ThemeName\"") && content.Contains("x:Key=\"ThemeMode\""))
                         {
-                            // We only load the dictionary if it appears to be a valid theme file
+                            // We only load the dictionary if it appears to be a valid theme file // This is fine, it's a WPF specific action
                             var dict = new ResourceDictionary { Source = new Uri(file, UriKind.Absolute) };
                             list.Add(new ThemeMetadata
                             {
@@ -904,7 +904,7 @@ namespace Adoracion
         /// </summary>
         private void UpdateBackgroundImagePreview(string imagePath)
         {
-            if (File.Exists(imagePath))
+            if (FileService.Instance.FileExists(imagePath)) // Use FileService
             {
                 BackgroundImagePreview.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(imagePath));
             }
@@ -1068,9 +1068,9 @@ namespace Adoracion
         {
             try
             {
-                if (File.Exists(SETTINGS_FILE))
+                if (FileService.Instance.FileExists(SETTINGS_FILE)) // Use FileService
                 {
-                    string json = File.ReadAllText(SETTINGS_FILE);
+                    string json = FileService.Instance.ReadAllText(SETTINGS_FILE); // Use FileService
                     string name = "default";
                     string mode = "Dark";
 
@@ -1107,7 +1107,7 @@ namespace Adoracion
                 var settings = new System.Collections.Generic.Dictionary<string, object>();
 
                 // Load existing settings
-                if (File.Exists(SETTINGS_FILE))
+                if (FileService.Instance.FileExists(SETTINGS_FILE)) // Use FileService
                 {
                     string json = File.ReadAllText(SETTINGS_FILE);
                     var doc = JsonDocument.Parse(json);
@@ -1123,8 +1123,8 @@ namespace Adoracion
                 settings["ThemeMode"] = themeMode;
 
                 // Save updated settings
-                string updatedJson = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(SETTINGS_FILE, updatedJson);
+                string updatedJson = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }); // This is fine
+                FileService.Instance.WriteAllText(SETTINGS_FILE, updatedJson); // Use FileService
             }
             catch (Exception ex)
             {

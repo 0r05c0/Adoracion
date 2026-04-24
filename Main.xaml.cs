@@ -120,6 +120,12 @@ namespace Adoracion
                         DriveService.Instance.RefreshDrives();
                         UpdateLibraryTabs();
                         RefreshLibraryList();
+
+                        // Auto-select the USB tab when a device is connected
+                        if (action == DBT_DEVICEARRIVAL && DriveService.Instance.SelectedDrive != null)
+                        {
+                            LibraryTabs.SelectedIndex = LibraryTabs.Items.Count - 1;
+                        }
                     }));
                 }
             }

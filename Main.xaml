@@ -63,9 +63,9 @@
         <conv:BoolToBrushConverter x:Key="BoolToBrushConverter"/>
         <conv:BoolToTranslationConverter x:Key="BoolToTranslationConverter"/>
 
-        <ContextMenu x:Key="LocalTabContextMenu">            
+        <ContextMenu x:Key="LocalTabContextMenu" Style="{DynamicResource ModernContextMenuStyle}">            
             <MenuItem Header="{Binding [Menu_OpenInExplorer], Source={x:Static services:LocalizationService.Instance}}" 
-                      Click="OpenHymnsFolder_Click">
+                      Click="OpenHymnsFolder_Click" Style="{DynamicResource ModernMenuItemStyle}">
                 <MenuItem.Icon>
                     <Path Data="{StaticResource FolderOpenIcon}" Fill="{DynamicResource TextPrimary}" Width="14" Height="14" Stretch="Uniform"/>
                 </MenuItem.Icon>

@@ -1,4 +1,4 @@
-﻿﻿/*
+﻿/*
  * This file is part of the Adoracion project (https://github.com/0r05c0/Adoracion).
  * Copyright (C) 2026 Matias Orosco 
  * 

@@ -59,6 +59,7 @@
         </Style>
 
         <local:FileNameWithoutExtensionConverter x:Key="FileNameConverter"/>
+        <local:FileNameConverter x:Key="FullFileNameConverter"/>
         <conv:BoolToBrushConverter x:Key="BoolToBrushConverter"/>
         <conv:BoolToTranslationConverter x:Key="BoolToTranslationConverter"/>
 
@@ -363,7 +364,7 @@
                                                         <GradientStop Color="Transparent" Offset="1"/>
                                                     </LinearGradientBrush>
                                                 </Grid.OpacityMask>
-                                                <TextBlock Text="{Binding}" VerticalAlignment="Center" FontSize="13" TextTrimming="None" TextWrapping="NoWrap"/>
+                                                <TextBlock Text="{Binding Converter={StaticResource FullFileNameConverter}}" VerticalAlignment="Center" FontSize="13" TextTrimming="None" TextWrapping="NoWrap"/>
                                             </Grid>
                                             <Button x:Name="LibraryRemoveButton" Grid.Column="3" Click="LibraryRemoveButton_Click" Style="{DynamicResource PlayerControlButton}" Width="28" Height="28" Margin="0,0,0,0" ToolTip="Remove Favorite" Visibility="Collapsed" HorizontalAlignment="Right">
                                                 <Path Data="{StaticResource CloseIcon}" Fill="{DynamicResource DeleteButtonRed}" Width="10" Height="10" Stretch="Uniform"/>

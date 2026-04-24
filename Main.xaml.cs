@@ -857,6 +857,14 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
         {
             // Hardcoded fallback for the Local tab to ensure it works immediately
             string hymnsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Hymns");
+
+            // Edge case: If the user deleted the folder while the app was open, recreate it now
+            if (!FileService.Instance.DirectoryExists(hymnsPath))
+            {
+                LoggingService.Instance.Log($"OpenHymnsFolder_Click: Folder missing, recreating: {hymnsPath}");
+                FileService.Instance.CreateDirectory(hymnsPath);
+            }
+
             LoggingService.Instance.Log($"OpenHymnsFolder_Click: Opening hardcoded path: {hymnsPath}");
             FileService.Instance.OpenInExplorer(hymnsPath);
         }

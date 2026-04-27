@@ -99,6 +99,7 @@ namespace Adoracion
                         {
                             PlaylistSelector.IsDropDownOpen = true;
                             var filter = textBox.Text;
+                            UpdateSaveButtonState();
                             if (string.IsNullOrEmpty(filter))
                             {
                                 PlaylistSelector.Items.Filter = null;
@@ -110,6 +111,7 @@ namespace Adoracion
                             }
                         }
                     };
+                    textBox.KeyDown += (ts, te) => { if (te.Key == Key.Enter && SaveButton.IsEnabled) SaveButton_Click(ts, te); };
                 }
             };
 
@@ -218,14 +220,14 @@ namespace Adoracion
 
         private void PlaylistSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            UpdateSaveButtonState();
-
             if (PlaylistSelector.SelectedItem is string name)
             {
                 var items = PlaylistService.GetPlaylistItems(name);
                 ItemsPreviewList.ItemsSource = items;
                 SelectedPlaylistItems = items;
             }
+
+            UpdateSaveButtonState();
         }
 
         private void UpdateSaveButtonState()
@@ -304,15 +306,22 @@ namespace Adoracion
                     return;
                 }
             }
-            
+            else if (_mode == WindowMode.Open)
+            {
+                // Respect the current state of the preview list (including manual removals)
+                SelectedPlaylistItems = (ItemsPreviewList.ItemsSource as IEnumerable<MediaFile>)?.ToList();
+            }
+
             DialogResult = true;
-            Close();
         }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
             if (!_isActuallyClosing)
             {
+                // Capture the intended DialogResult before e.Cancel = true clears it
+                bool? result = this.DialogResult;
+
                 e.Cancel = true;
                 var fadeOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.1))
                 {
@@ -321,7 +330,11 @@ namespace Adoracion
                 fadeOut.Completed += (s, ev) =>
                 {
                     _isActuallyClosing = true;
-                    this.Close();
+                    
+                    if (result.HasValue)
+                        this.DialogResult = result.Value; // Re-setting DialogResult will close the window for real
+                    else
+                        this.Close();
                 };
                 this.BeginAnimation(OpacityProperty, fadeOut);
                 return;

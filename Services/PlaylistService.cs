@@ -29,6 +29,10 @@ namespace Adoracion.Services
             using (var connection = new SqliteConnection(ConnectionString))
             {
                 connection.Open();
+                var pragmaCmd = connection.CreateCommand();
+                pragmaCmd.CommandText = "PRAGMA foreign_keys = ON;";
+                pragmaCmd.ExecuteNonQuery();
+
                 var command = connection.CreateCommand();
                 command.CommandText = @"
                     CREATE TABLE IF NOT EXISTS Playlists (

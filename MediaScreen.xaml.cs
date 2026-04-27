@@ -795,6 +795,15 @@ namespace Adoracion
         /// </summary>
         private void LoadAndApplyBackgroundImage()
         {
+            // Prevent the idle background image from overlaying the video surface 
+            // if a video is currently active (playing, paused, or loading).
+            if (_mediaPlayer != null && IsVisualMedia() && 
+                (_mediaPlayer.State == VLCState.Playing || _mediaPlayer.State == VLCState.Paused || 
+                 _mediaPlayer.State == VLCState.Opening || _mediaPlayer.State == VLCState.Buffering))
+            {
+                return;
+            }
+
             bool enableBgImage = AppearanceSettings.GetEnableBackgroundImage();
             string imagePath = AppearanceSettings.GetBackgroundImagePath();
 

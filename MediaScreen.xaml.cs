@@ -287,7 +287,7 @@ namespace Adoracion
         private void RestoreContent()
         {
             if (LabelOverlay != null) LabelOverlay.Visibility = Visibility.Visible;
-            LoadAndApplyBackgroundImage(); // This will show/hide BackgroundImage based on settings
+            LoadAndApplyBackgroundImage(force: true); // This will show/hide BackgroundImage based on settings
         }
 
         private void InitializeOverlayTimer()
@@ -444,7 +444,7 @@ namespace Adoracion
 
             // Finalize text positioning once window dimensions and visual tree are set
             ApplyOverlayPosition();
-            LoadAndApplyBackgroundImage();
+            LoadAndApplyBackgroundImage(force: true);
         }
 
         /// <summary>
@@ -495,7 +495,7 @@ namespace Adoracion
                 catch { MainText.Foreground = System.Windows.Media.Brushes.Black; }
 
                 ApplyOverlayPosition();
-                LoadAndApplyBackgroundImage(); // Ensure background image is updated if text changes
+                LoadAndApplyBackgroundImage(force: false); // Ensure background image is updated if text changes
             }
         }
 
@@ -675,7 +675,7 @@ namespace Adoracion
             
             // Restore the default wallpaper from settings
             LoggingService.Instance.Log("MediaScreen.ResetToIdleState: Restoring default background.");
-            LoadAndApplyBackgroundImage();
+            LoadAndApplyBackgroundImage(force: true);
         }
 
         /// <summary>
@@ -793,8 +793,18 @@ namespace Adoracion
         /// <summary>
         /// Loads the background image from settings and applies it.
         /// </summary>
-        private void LoadAndApplyBackgroundImage()
+        /// <param name="force">When true, bypasses checks for active video playback.</param>
+        private void LoadAndApplyBackgroundImage(bool force = false)
         {
+            // Prevent the idle background image from overlaying the video surface 
+            // if a video is currently active (playing, paused, or loading).
+            if (!force && _mediaPlayer != null && IsVisualMedia() && 
+                (_mediaPlayer.State == VLCState.Playing || _mediaPlayer.State == VLCState.Paused || 
+                 _mediaPlayer.State == VLCState.Opening || _mediaPlayer.State == VLCState.Buffering))
+            {
+                return;
+            }
+
             bool enableBgImage = AppearanceSettings.GetEnableBackgroundImage();
             string imagePath = AppearanceSettings.GetBackgroundImagePath();
 
@@ -812,7 +822,7 @@ namespace Adoracion
             }
             else
             {
-                FadeOutBothImages();
+                HideBothImages();
             }
         }
 
@@ -866,8 +876,9 @@ namespace Adoracion
             ImageB.Visibility = Visibility.Collapsed;
             ImageA.Opacity = 0;
             ImageB.Opacity = 0;
-            ImageBackground.Opacity = 0;
-            ImageContainer.Opacity = 0; // Explicitly set to 0
+            // Ensure the background layer remains black and visible
+            ImageBackground.Opacity = 1.0;
+            ImageContainer.Opacity = 1.0;
         }
 
         private void FadeInPlayer()

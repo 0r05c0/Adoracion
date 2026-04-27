@@ -11,7 +11,7 @@
     <Company>Matias Orosco</Company>
     <PackageReadmeFile>README.md</PackageReadmeFile>
 	<!-- Version settings -->
-	<AssemblyVersion>0.9.0.12</AssemblyVersion>
+	<AssemblyVersion>0.9.0.13</AssemblyVersion>
     <AssemblyName>Adoracion</AssemblyName>
   </PropertyGroup>
 

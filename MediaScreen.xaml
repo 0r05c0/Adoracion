@@ -23,7 +23,7 @@
 
         <!-- VLC Video View (Main Container) -->
         <!-- We set Opacity to 1.0 by default because it now hosts our entire UI -->
-        <vlc:VideoView x:Name="VlcPlayer" Opacity="1.0" Panel.ZIndex="0" Focusable="True" KeyDown="VlcPlayer_KeyDown">
+        <vlc:VideoView x:Name="VlcPlayer" Background="Black" Opacity="1.0" Panel.ZIndex="0" Focusable="True" KeyDown="VlcPlayer_KeyDown">
             <Grid x:Name="VideoContainer">
                 <!-- Background Images (inside to bypass Airspace) -->
                 <Grid x:Name="ImageContainer" Background="Transparent">

@@ -1372,6 +1372,12 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             LoggingService.Instance.Log("StopMedia: Entry.");
             _playCts?.Cancel(); // Stop any pending image setup
 
+            // Reset UI and state immediately
+            selectedFile = null;
+            TrackTitleTextBlock.Text = string.Empty;
+            currentPlaylistIndex = -1;
+            foreach (var m in mediaFiles) m.IsPlaying = false;
+
             // 1. Trigger the visual transition to idle (wallpaper/label) first.
             // This allows the overlay to fade in OVER the video before we stop the engine.
             if (mediaScreen != null)
@@ -1382,9 +1388,6 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
 
             if (PlaybackService.Instance.Player != null)
             {
-                // Reset visualizer status
-                foreach (var m in mediaFiles) m.IsPlaying = false;
-
                 // Ensure volume is 0 after stopping, especially after a fade-out.
                 // The volume will be restored to the slider value when playback starts again.
                 PlaybackService.Instance.SetVolume(0);
@@ -1399,7 +1402,6 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
                 ProgressSlider.Value = 0;
                 ProgressSlider.IsEnabled = true;
                 TimeLeftTextBlock.Text = TranslationHelper.GetString("Time_Format", "--:--");
-                currentPlaylistIndex = -1;
             }
             
             isTransitioning = false; // Reset flag at the end

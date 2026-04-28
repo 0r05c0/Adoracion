@@ -43,8 +43,8 @@ The application persists preferences in a `UserSettings.json` file located in th
 
 You can download the latest stable binaries and view the changelog here:
 
-- **Latest Stable:** Download x86 *[Version 0.9.0.1-beta](https://github.com/0r05c0/Adoracion/releases/tag/v0.9.0.1)*
-                     Download x64 *[Version 0.9.0.1-beta](https://github.com/0r05c0/Adoracion/releases/tag/v0.9.0.1_x64)*
+- **Latest Stable:** Download x86 & x64 *[Adoracion zip](https://github.com/0r05c0/Adoracion/releases/latest)*
+
 - **All Releases:** GitHub *[Releases Page](https://github.com/0r05c0/Adoracion/releases)*
 
 ## Installation

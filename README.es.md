@@ -43,8 +43,8 @@ La aplicación guarda las preferencias en un archivo `UserSettings.json` ubicado
 
 Puedes descargar los binarios estables más recientes y ver el historial de cambios aquí:
 
-- **Última Versión Estable:** Descargar x86 *[Versión 0.9.0.1-beta](https://github.com/0r05c0/Adoracion/releases/tag/v0.9.0.1)*
-                              Descargar x64 *[Versión 0.9.0.1-beta](https://github.com/0r05c0/Adoracion/releases/tag/v0.9.0.1_x64)*
+- **Última Versión Estable:** Descargar x86 & x64 *[Adoracion zip](https://github.com/0r05c0/Adoracion/releases/latest)*
+
 - **Todos los Lanzamientos:** Página de *[Releases en GitHub](https://github.com/0r05c0/Adoracion/releases)*
 
 ## Instalación

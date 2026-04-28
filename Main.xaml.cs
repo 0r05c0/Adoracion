@@ -120,53 +120,12 @@ namespace Adoracion
 
         private void InitializeMonitors()
         {
-            MonitorComboBox.SelectionChanged -= MonitorComboBox_SelectionChanged;
-            MonitorComboBox.Items.Clear();            
-            
-            string savedScreen = AppSettingsService.GetSetting("SelectedScreen", "");
-
-            if (!ScreenService.Instance.IsMultipleScreens())
-            {
-                MonitorComboBox.IsEnabled = false;
-                MonitorComboBox.ToolTip = TranslationHelper.GetString("Tooltip_NoSecondaryMonitor", "A secondary monitor is not available");
-            }
-            else
-            {
-                MonitorComboBox.IsEnabled = true;
-                MonitorComboBox.ToolTip = null;
-            }
-
-            var screens = ScreenService.Instance.GetAllScreens();
-            foreach (var screen in screens)
-            {
-                var item = new ComboBoxItem
-                {
-                    Content = screen.DisplayName, //$"{screen.DeviceName} ({(screen.Primary ? TranslationHelper.GetString("Label_Primary", "Primary") : TranslationHelper.GetString("Label_Secondary","Secondary"))})",
-                    Tag = screen.DeviceName,
-                };
-                MonitorComboBox.Items.Add(item);
-
-                if (screen.DeviceName == savedScreen)
-                {
-                    MonitorComboBox.SelectedItem = item;
-                }
-            }
-
-            if (MonitorComboBox.SelectedItem == null && MonitorComboBox.Items.Count > 0)
-            {
-                MonitorComboBox.SelectedIndex = 0;
-            }
-
-            MonitorComboBox.SelectionChanged += MonitorComboBox_SelectionChanged;
+            ScreenService.Instance.PopulateScreenComboBox(MonitorComboBox, MonitorComboBox_SelectionChanged);
         }
 
         private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (MonitorComboBox.SelectedItem is ComboBoxItem item)
-            {
-                string deviceName = item.Tag as string;
-                AppSettingsService.SetSetting("SelectedScreen", deviceName);
-            }
+            ScreenService.Instance.HandleScreenSelectionChanged(MonitorComboBox);
         }
 
         private void ShowMediaScreen()

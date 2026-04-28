@@ -12,6 +12,7 @@
 using Adoracion.Models;
 using Adoracion.Helpers;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Interop;
@@ -167,6 +168,69 @@ namespace Adoracion.Services
                 window.Height = screen.WorkingArea.Height / dpi.DpiScaleY;
                 
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// Populates a ComboBox with available screens and handles selection state.
+        /// Consolidates logic for Main and SettingsWindow.
+        /// </summary>
+        /// <param name="comboBox">The ComboBox to populate.</param>
+        /// <param name="selectionHandler">The SelectionChanged event handler to temporarily detach.</param>
+        public void PopulateScreenComboBox(System.Windows.Controls.ComboBox comboBox, SelectionChangedEventHandler selectionHandler)
+        {
+            comboBox.SelectionChanged -= selectionHandler;
+            comboBox.Items.Clear();
+
+            string savedScreen = AppSettingsService.GetSetting("SelectedScreen", "");
+
+            if (!IsMultipleScreens())
+            {
+                comboBox.IsEnabled = false;
+                comboBox.ToolTip = TranslationHelper.GetString("Tooltip_NoSecondaryMonitor", "A secondary monitor is not available");
+                ToolTipService.SetShowOnDisabled(comboBox, true);
+            }
+            else
+            {
+                comboBox.IsEnabled = true;
+                comboBox.ToolTip = null;
+                ToolTipService.SetShowOnDisabled(comboBox, false);
+            }
+
+            var screens = GetAllScreens();
+            foreach (var screen in screens)
+            {
+                var item = new ComboBoxItem
+                {
+                    Content = screen.DisplayName,
+                    Tag = screen.DeviceName,
+                };
+                comboBox.Items.Add(item);
+
+                if (screen.DeviceName == savedScreen)
+                {
+                    comboBox.SelectedItem = item;
+                }
+            }
+
+            if (comboBox.SelectedItem == null && comboBox.Items.Count > 0)
+            {
+                comboBox.SelectedIndex = 0;
+            }
+
+            comboBox.SelectionChanged += selectionHandler;
+        }
+
+        /// <summary>
+        /// Saves the selected screen device name to settings when the selection changes.
+        /// </summary>
+        /// <param name="comboBox">The ComboBox containing the screen selection.</param>
+        public void HandleScreenSelectionChanged(System.Windows.Controls.ComboBox comboBox)
+        {
+            if (comboBox.SelectedItem is ComboBoxItem item)
+            {
+                string? deviceName = item.Tag as string;
+                AppSettingsService.SetSetting("SelectedScreen", deviceName ?? "");
             }
         }
 

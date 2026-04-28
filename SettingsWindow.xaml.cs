@@ -434,41 +434,6 @@ namespace Adoracion
             }
         }
 
-        /// <summary>
-        /// Initializes the screen dropdown with available displays.
-        /// </summary>
-        private void InitializeScreenDropdown()
-        {
-            ScreenDropdown.SelectionChanged -= ScreenDropdown_SelectionChanged;
-            ScreenDropdown.Items.Clear();
-
-            var screens = ScreenService.Instance.GetAllScreens();
-            string savedScreen = AppSettingsService.GetSetting("SelectedScreen", "");
-
-            foreach (var screen in screens)
-            {
-                var item = new ComboBoxItem
-                {
-                    // Localize "Primary" and "Secondary"
-                    Content = screen.DisplayName,
-                    Tag = screen.DeviceName // Use DeviceName as the unique identifier
-                };
-                ScreenDropdown.Items.Add(item);
-
-                if (screen.DeviceName == savedScreen)
-                {
-                    ScreenDropdown.SelectedItem = item;
-                }
-            }
-
-            if (ScreenDropdown.SelectedItem == null && ScreenDropdown.Items.Count > 0)
-            {
-                ScreenDropdown.SelectedIndex = 0;
-            }
-
-            ScreenDropdown.SelectionChanged += ScreenDropdown_SelectionChanged;
-        }
-
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
             if (!_isActuallyClosing)
@@ -505,14 +470,18 @@ namespace Adoracion
 
             ScreenService.Instance.MoveWindowToUIScreen(this, fillScreen: false);
         }
+        
+        /// <summary>
+        /// Initializes the screen dropdown with available displays.
+        /// </summary>
+        private void InitializeScreenDropdown()
+        {
+            ScreenService.Instance.PopulateScreenComboBox(ScreenDropdown, ScreenDropdown_SelectionChanged);
+        }
 
         private void ScreenDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ScreenDropdown.SelectedItem is ComboBoxItem item)
-            {
-                string deviceName = item.Tag as string;
-                AppSettingsService.SetSetting("SelectedScreen", deviceName);
-            }
+            ScreenService.Instance.HandleScreenSelectionChanged(ScreenDropdown);
         }
 
         /// <summary>

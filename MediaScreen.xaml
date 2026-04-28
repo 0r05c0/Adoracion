@@ -14,7 +14,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vlc="clr-namespace:LibVLCSharp.WPF;assembly=LibVLCSharp.WPF"
         Title="Multi window player" Background="Black" Loaded="Window_Loaded" KeyDown="Window_KeyDown"
-        WindowStyle="None" ResizeMode="NoResize">
+        WindowStyle="None"
+        WindowState="Maximized"
+        ResizeMode="NoResize">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </Window.Resources>

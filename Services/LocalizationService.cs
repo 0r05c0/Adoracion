@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
 using System.Text.Json;
 using System.ComponentModel;
 using System.Windows.Threading;
@@ -298,12 +299,18 @@ namespace Adoracion.Services
             try
             {
                 var settings = SettingsRepository.GetSetting("Language");
-                if (settings != null && !string.IsNullOrEmpty(settings.Value))
+                if (settings != null && !string.IsNullOrEmpty(settings.Value) && _availableLanguages.Contains(settings.Value))
                 {
-                    if (_availableLanguages.Contains(settings.Value))
-                    {
-                        _currentLanguage = settings.Value;
-                    }
+                    _currentLanguage = settings.Value;
+                }
+                else
+                {
+                    // If no valid setting exists, try to match the OS UI language
+                    string osLang = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.ToLower();
+                    if (_availableLanguages.Contains(osLang))
+                        _currentLanguage = osLang;
+                    else
+                        _currentLanguage = "en"; // Default fallback to English
                 }
             }
             catch (Exception ex)

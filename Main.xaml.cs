@@ -120,53 +120,12 @@ namespace Adoracion
 
         private void InitializeMonitors()
         {
-            MonitorComboBox.SelectionChanged -= MonitorComboBox_SelectionChanged;
-            MonitorComboBox.Items.Clear();
-            
-            var screens = System.Windows.Forms.Screen.AllScreens;
-            string savedScreen = AppSettingsService.GetSetting("SelectedScreen", "");
-
-            if (screens.Length <= 1)
-            {
-                MonitorComboBox.IsEnabled = false;
-                MonitorComboBox.ToolTip = TranslationHelper.GetString("Tooltip_NoSecondaryMonitor", "A secondary monitor is not available");
-            }
-            else
-            {
-                MonitorComboBox.IsEnabled = true;
-                MonitorComboBox.ToolTip = null;
-            }
-
-            foreach (var screen in screens)
-            {
-                var item = new ComboBoxItem
-            {
-                Content = $"{screen.DeviceName} ({(screen.Primary ? TranslationHelper.GetString("Label_Primary", "Primary") : TranslationHelper.GetString("Label_Secondary","Secondary"))})",
-                Tag = screen.DeviceName,
-            };
-            MonitorComboBox.Items.Add(item);
-
-            if (screen.DeviceName == savedScreen)
-            {
-                MonitorComboBox.SelectedItem = item;
-            }
+            ScreenService.Instance.PopulateScreenComboBox(MonitorComboBox, MonitorComboBox_SelectionChanged);
         }
 
-        if (MonitorComboBox.SelectedItem == null && MonitorComboBox.Items.Count > 0)
+        private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            MonitorComboBox.SelectedIndex = 0;
-        }
-
-        MonitorComboBox.SelectionChanged += MonitorComboBox_SelectionChanged;
-    }
-
-private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (MonitorComboBox.SelectedItem is ComboBoxItem item)
-            {
-                string deviceName = item.Tag as string;
-                AppSettingsService.SetSetting("SelectedScreen", deviceName);
-            }
+            ScreenService.Instance.HandleScreenSelectionChanged(MonitorComboBox);
         }
 
         private void ShowMediaScreen()
@@ -285,71 +244,15 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
 
         private void MoveToOppositeScreen()
         {
-            string mediaScreenName = AppSettingsService.GetSetting("SelectedScreen", "");
-            var screens = System.Windows.Forms.Screen.AllScreens;
-
-            // Determine which screen the UI should be on (not the media screen)
-            var targetScreen = screens.Length > 1 
-                ? (screens.FirstOrDefault(s => s.DeviceName != mediaScreenName) ?? screens.FirstOrDefault(s => s.Primary))
-                : System.Windows.Forms.Screen.PrimaryScreen;
-
-            if (targetScreen != null)
-            {
-                // Start fade out
-                var fadeOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.15));
-                fadeOut.Completed += (s, e) =>
-                {
-                    var dpi = VisualTreeHelper.GetDpi(this);
-                    
-                    this.WindowState = WindowState.Normal;
-                    
-                    this.Left = targetScreen.WorkingArea.Left / dpi.DpiScaleX;
-                    this.Top = targetScreen.WorkingArea.Top / dpi.DpiScaleY;
-                    this.Width = targetScreen.WorkingArea.Width / dpi.DpiScaleX;
-                    this.Height = targetScreen.WorkingArea.Height / dpi.DpiScaleY;
-                    
-                    IsMaximizedView = true;
-
-                    // Fade back in
-                    var fadeIn = new DoubleAnimation(1.0, TimeSpan.FromSeconds(0.25));
-                    this.BeginAnimation(OpacityProperty, fadeIn);
-                };
-                this.BeginAnimation(OpacityProperty, fadeOut);
-            }
-            else
-            {
-                // If no target screen (e.g., only one monitor and it's the media screen),
-                // ensure it's in normal state and not custom maximized.
-                this.WindowState = WindowState.Normal;
-                IsMaximizedView = false;
-            }
+            ScreenService.Instance.MoveWindowToUIScreen(this, fillScreen: true, (isMax) => IsMaximizedView = isMax);
         }
 
         private void MaximizeButton_Click(object sender, RoutedEventArgs e)
         {
-            if (IsMaximizedView)
-            {
-                // Restore to normal state
-                this.WindowState = WindowState.Normal;
-                this.Left = _normalLeft;
-                this.Top = _normalTop;
-                this.Width = _normalWidth;
-                this.Height = _normalHeight;
-                IsMaximizedView  = false;
-            }
-            else
-            {
-                // Custom maximize
-                var screen = System.Windows.Forms.Screen.FromHandle(new System.Windows.Interop.WindowInteropHelper(this).Handle);
-                var dpi = VisualTreeHelper.GetDpi(this);
-
-                this.WindowState = WindowState.Normal; // Ensure it's normal before setting size/pos
-                this.Left = screen.WorkingArea.Left / dpi.DpiScaleX;
-                this.Top = screen.WorkingArea.Top / dpi.DpiScaleY;
-                this.Width = screen.WorkingArea.Width / dpi.DpiScaleX;
-                this.Height = screen.WorkingArea.Height / dpi.DpiScaleY;
-                IsMaximizedView = true;
-            }
+                IsMaximizedView = ScreenService.Instance.ToggleCustomMaximize(
+                this, 
+                IsMaximizedView, 
+                new Rect(_normalLeft, _normalTop, _normalWidth, _normalHeight));
         }
 
         private void VisualizerTimer_Tick(object? sender, EventArgs e)
@@ -1401,7 +1304,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
                 mediaScreen.SuppressResetToIdleState = false;
 
                 // If in fallback mode (single monitor), close the media window automatically on stop
-                if (System.Windows.Forms.Screen.AllScreens.Length == 1)
+                if (!ScreenService.Instance.IsMultipleScreens())
                 {
                     mediaScreen.Close();
                 }
@@ -1463,7 +1366,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             InitializeMonitors();
             await Task.Yield();
 
-            if (System.Windows.Forms.Screen.AllScreens.Length > 1)
+            if (ScreenService.Instance.IsMultipleScreens())
             {
                 ShowMediaScreen();
                 await Task.Yield();
@@ -1478,6 +1381,9 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             // Setup Timers and Playback Subscriptions
             updateTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             updateTimer.Tick += UpdateTimer_Tick;
+
+            // Subscribe to monitor changes
+            ScreenService.Instance.DisplayConfigurationChanged += OnDisplayConfigurationChanged;
 
             PlaybackService.Instance.PlaybackStateChanged += (s, ev) =>
                 Dispatcher.BeginInvoke(new Action(() =>
@@ -1520,6 +1426,11 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             _splash?.Close();
             _splash = null;
             this.Activate(); // Bring main window to front
+        }
+
+        private void OnDisplayConfigurationChanged()
+        {
+            Dispatcher.BeginInvoke(new Action(() => InitializeMonitors()));
         }
 
         private void CrossfadeToggle_Changed(object sender, RoutedEventArgs e)
@@ -1938,6 +1849,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
         /// </summary>
         protected override void OnClosed(EventArgs e)
         {
+            ScreenService.Instance.DisplayConfigurationChanged -= OnDisplayConfigurationChanged;
             mediaScreen?.Close();
             System.Windows.Application.Current.Shutdown();
         }

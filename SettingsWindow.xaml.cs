@@ -62,6 +62,9 @@ namespace Adoracion
             InitializeMediaFolders();
             InitializeLanguageDropdown();
             InitializeScreenDropdown();
+
+            // Subscribe to monitor changes
+            ScreenService.Instance.DisplayConfigurationChanged += OnDisplayConfigurationChanged;
             
             UpdateThemeSelection(_currentThemeMode);
             UpdateCustomThemesDropdown(_currentThemeMode);
@@ -86,6 +89,11 @@ namespace Adoracion
             AppSettingsService.SettingChanged += OnSettingChanged;
 
             RefreshUIText();
+        }
+
+        private void OnDisplayConfigurationChanged()
+        {
+            Dispatcher.BeginInvoke(new Action(() => InitializeScreenDropdown()));
         }
 
         private void TranslationHelper_LanguageChanged(object? sender, LanguageChangedEventArgs e)
@@ -434,45 +442,11 @@ namespace Adoracion
             }
         }
 
-        /// <summary>
-        /// Initializes the screen dropdown with available displays.
-        /// </summary>
-        private void InitializeScreenDropdown()
-        {
-            ScreenDropdown.SelectionChanged -= ScreenDropdown_SelectionChanged;
-            ScreenDropdown.Items.Clear();
-
-            var screens = ScreenService.Instance.GetAllScreens();
-            string savedScreen = AppSettingsService.GetSetting("SelectedScreen", "");
-
-            foreach (var screen in screens)
-            {
-                var item = new ComboBoxItem
-                {
-                    // Localize "Primary" and "Secondary"
-                    Content = $"{screen.DeviceName} ({(screen.Primary ? TranslationHelper.GetString("Label_Primary", "Primary") : TranslationHelper.GetString("Label_Secondary", "Secondary"))})",
-                    Tag = screen.DeviceName // Use DeviceName as the unique identifier
-                };
-                ScreenDropdown.Items.Add(item);
-
-                if (screen.DeviceName == savedScreen)
-                {
-                    ScreenDropdown.SelectedItem = item;
-                }
-            }
-
-            if (ScreenDropdown.SelectedItem == null && ScreenDropdown.Items.Count > 0)
-            {
-                ScreenDropdown.SelectedIndex = 0;
-            }
-
-            ScreenDropdown.SelectionChanged += ScreenDropdown_SelectionChanged;
-        }
-
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
             if (!_isActuallyClosing)
             {
+                ScreenService.Instance.DisplayConfigurationChanged -= OnDisplayConfigurationChanged;
                 e.Cancel = true;
                 var fadeOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.3))
                 {
@@ -503,43 +477,20 @@ namespace Adoracion
             // For the Settings window, we just ensure it's centered on the UI screen.
             // The logic here is simplified as SettingsWindow doesn't "maximize" to a working area.
 
-            string mediaScreenName = AppSettingsService.GetSetting("SelectedScreen", "");
-            var screens = ScreenService.Instance.GetAllScreens();
-
-            // Find the screen that is NOT the media screen, or the primary if only one
-            var targetScreen = screens.FirstOrDefault(s => s.DeviceName != mediaScreenName) ?? ScreenService.Instance.GetPrimaryScreen();
-
-            if (targetScreen != null)
-            {
-                // Only move if we aren't already on the correct monitor
-                var currentScreenDeviceName = System.Windows.Forms.Screen.FromHandle(new System.Windows.Interop.WindowInteropHelper(this).Handle).DeviceName;
-                if (currentScreenDeviceName == targetScreen.DeviceName) return;
-
-                var fadeOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.15));
-                fadeOut.Completed += (s, e) =>
-                {
-                    // Position settings window in the center of the UI screen
-                    var dpi = VisualTreeHelper.GetDpi(this);
-                    double windowWidth = ActualWidth > 0 ? ActualWidth : (double.IsNaN(Width) ? 1200 : Width);
-                    double windowHeight = ActualHeight > 0 ? ActualHeight : (double.IsNaN(Height) ? 800 : Height);
-
-                    this.Left = (targetScreen.WorkingArea.Left / dpi.DpiScaleX) + ((targetScreen.WorkingArea.Width / dpi.DpiScaleX) - windowWidth) / 2;
-                    this.Top = (targetScreen.WorkingArea.Top / dpi.DpiScaleY) + ((targetScreen.WorkingArea.Height / dpi.DpiScaleY) - windowHeight) / 2;
-
-                    var fadeIn = new DoubleAnimation(1.0, TimeSpan.FromSeconds(0.25));
-                    this.BeginAnimation(OpacityProperty, fadeIn);
-                };
-                this.BeginAnimation(OpacityProperty, fadeOut);
-            }
+            ScreenService.Instance.MoveWindowToUIScreen(this, fillScreen: false);
+        }
+        
+        /// <summary>
+        /// Initializes the screen dropdown with available displays.
+        /// </summary>
+        private void InitializeScreenDropdown()
+        {
+            ScreenService.Instance.PopulateScreenComboBox(ScreenDropdown, ScreenDropdown_SelectionChanged);
         }
 
         private void ScreenDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ScreenDropdown.SelectedItem is ComboBoxItem item)
-            {
-                string deviceName = item.Tag as string;
-                AppSettingsService.SetSetting("SelectedScreen", deviceName);
-            }
+            ScreenService.Instance.HandleScreenSelectionChanged(ScreenDropdown);
         }
 
         /// <summary>

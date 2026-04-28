@@ -223,7 +223,6 @@ namespace Adoracion
             {
                 Dispatcher.Invoke(() =>
                 {
-                    var screens = Screen.AllScreens;
                     string savedScreen = AppSettingsService.GetSetting("SelectedScreen", "");
 
                     if (screenInfo != null && screenInfo.DeviceName == savedScreen) {
@@ -903,7 +902,7 @@ namespace Adoracion
             if (ControlsOverlay == null) return;
 
             // Do not show controls if there is more than one monitor available
-            if (System.Windows.Forms.Screen.AllScreens.Length > 1)
+            if (ScreenService.Instance.IsMultipleScreens())
             {
                 ControlsOverlay.Visibility = Visibility.Hidden;
                 return;
@@ -1161,7 +1160,7 @@ namespace Adoracion
             try
             { 
                 var uri = new Uri(currentMedia.Mrl);
-                return !MediaHelper.IsVisualMedia(uri.LocalPath);
+                return MediaHelper.IsVisualMedia(uri.LocalPath);
             }
             catch { return false; }
         }

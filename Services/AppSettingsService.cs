@@ -15,7 +15,7 @@ namespace Adoracion.Services
 {
     public static class AppSettingsService
     {
-        private static readonly string DbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.db");
+        private static readonly string DbPath = FileService.Instance.CombinePath(AppDomain.CurrentDomain.BaseDirectory, "settings.db");
         private static readonly string ConnectionString = $"Data Source={DbPath}";
 
         public static event Action<string>? SettingChanged;

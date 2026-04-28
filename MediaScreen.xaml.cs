@@ -1161,8 +1161,7 @@ namespace Adoracion
             try
             { 
                 var uri = new Uri(currentMedia.Mrl);
-                string ext = System.IO.Path.GetExtension(uri.LocalPath).ToLower();
-                return !MediaHelper.AudioExtensions.Contains(ext);
+                return !MediaHelper.IsVisualMedia(uri.LocalPath);
             }
             catch { return false; }
         }

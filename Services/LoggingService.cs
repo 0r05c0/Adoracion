@@ -24,7 +24,7 @@ namespace Adoracion.Services
 
         private LoggingService()
         {
-            _logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Adoracion_Logging_Debug.log");
+            _logPath = FileService.Instance.CombinePath(AppDomain.CurrentDomain.BaseDirectory, "Adoracion_Logging_Debug.log");
         }
 
         public void Log(string message)
@@ -36,7 +36,7 @@ namespace Adoracion.Services
 
                 if (!isEnabled) return;
 
-                System.IO.File.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
+                FileService.Instance.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}");
             }
             catch { /* Ignore logging failures */ }
         }

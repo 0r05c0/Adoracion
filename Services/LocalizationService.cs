@@ -93,7 +93,7 @@ namespace Adoracion.Services
         {
             try
             {
-                string absolutePath = System.IO.Path.GetFullPath(_translationsPath);
+                string absolutePath = FileService.Instance.GetFullPath(_translationsPath);
                 LoggingService.Instance.Log($"Attempting to load translations from: {absolutePath}");
 
                 if (!FileService.Instance.FileExists(_translationsPath)) // Use FileService
@@ -231,7 +231,7 @@ namespace Adoracion.Services
         {
             try
             {
-                string? directory = System.IO.Path.GetDirectoryName(_translationsPath);
+                string? directory = FileService.Instance.GetDirectoryName(_translationsPath);
                 if (!string.IsNullOrEmpty(directory)) FileService.Instance.CreateDirectory(directory); // Use FileService
                 
                 var options = new JsonSerializerOptions { WriteIndented = true };

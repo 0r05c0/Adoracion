@@ -32,7 +32,7 @@ namespace Adoracion.Helpers
 
         // Default Values
         public static string DefaultOverlayText => TranslationHelper.GetString("Label_Psalm_Breath", "Let everything that has breath praise the Lord. Praise the Lord!");
-        public static string DefaultBackgroundImagePath => System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources", "default_background.jpg");
+        public static string DefaultBackgroundImagePath => FileService.Instance.CombinePath(AppDomain.CurrentDomain.BaseDirectory, "resources", "default_background.jpg");
 
         // Centralized Getters
         public static string GetOverlayPosition() => AppSettingsService.GetSetting(OverlayPositionKey, "TopCenter");

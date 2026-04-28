@@ -386,12 +386,8 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
 
         private void LibraryRemoveButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is System.Windows.Controls.Button btn && btn.DataContext is string fileName)
+            if (sender is System.Windows.Controls.Button btn && btn.DataContext is string filePath)
             {
-                // Since this button only appears in the Favorites tab, we resolve the path from the favorites list
-                string filePath = FavoritesService.GetFavorites()
-                    .FirstOrDefault(f => System.IO.Path.GetFileName(f) == fileName) ?? "";
-
                 if (!string.IsNullOrEmpty(filePath))
                 {
                     FavoritesService.RemoveFavorite(filePath);

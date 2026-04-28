@@ -9,10 +9,7 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Windows.Interop;
 
 namespace Adoracion.Services
@@ -64,7 +61,7 @@ namespace Adoracion.Services
             try
             {
                 // Get the root of the system drive (e.g., "C:\") to ensure we don't include it
-                string systemDrive = Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\";
+                string systemDrive = System.IO.Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\";
 
                 _removableDrives = DriveInfo.GetDrives()
                     .Where(d => d.IsReady && 

@@ -9,10 +9,6 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Microsoft.Data.Sqlite;
 using Adoracion.Helpers;
 using Adoracion.Models;
@@ -21,7 +17,7 @@ namespace Adoracion.Services
 {
     public static class PlaylistService
     {
-        private static readonly string DbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "playlists.db");
+        private static readonly string DbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "playlists.db");
         private static readonly string ConnectionString = $"Data Source={DbPath}";
 
         static PlaylistService()

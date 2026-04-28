@@ -9,13 +9,9 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Globalization;
 using System.Text.Json;
 using System.ComponentModel;
-using System.Windows.Threading;
 
 namespace Adoracion.Services
 {
@@ -97,7 +93,7 @@ namespace Adoracion.Services
         {
             try
             {
-                string absolutePath = Path.GetFullPath(_translationsPath);
+                string absolutePath = System.IO.Path.GetFullPath(_translationsPath);
                 LoggingService.Instance.Log($"Attempting to load translations from: {absolutePath}");
 
                 if (!FileService.Instance.FileExists(_translationsPath)) // Use FileService
@@ -235,7 +231,7 @@ namespace Adoracion.Services
         {
             try
             {
-                string? directory = Path.GetDirectoryName(_translationsPath);
+                string? directory = System.IO.Path.GetDirectoryName(_translationsPath);
                 if (!string.IsNullOrEmpty(directory)) FileService.Instance.CreateDirectory(directory); // Use FileService
                 
                 var options = new JsonSerializerOptions { WriteIndented = true };

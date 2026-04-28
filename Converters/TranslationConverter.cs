@@ -9,12 +9,10 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
 using System.Globalization;
 using System.Windows.Data;
 using Adoracion.Helpers;
 using System.Windows.Media;
-using System.Windows;
 
 namespace Adoracion.Converters
 {

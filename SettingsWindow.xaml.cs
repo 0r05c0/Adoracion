@@ -9,15 +9,8 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using Adoracion.Helpers;
-using Adoracion.Models; // Added to reference the moved ScreenInfo class
-using Adoracion.Services;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Windows; // Keep this for WPF types
@@ -28,6 +21,8 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Navigation;
 using WpfButton = System.Windows.Controls.Button;
+using Adoracion.Helpers;
+using Adoracion.Services;
 
 namespace Adoracion
 {
@@ -158,10 +153,10 @@ namespace Adoracion
         private List<ThemeMetadata> DiscoverThemes()
         {
             var list = new List<ThemeMetadata>();
-            string themesRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Themes", "Color_Themes");
+            string themesRoot = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Themes", "Color_Themes");
             if (!FileService.Instance.DirectoryExists(themesRoot)) return list; // Use FileService
 
-            var themeFolders = Directory.GetDirectories(themesRoot); // This is fine, getting folder names
+            var themeFolders = System.IO.Directory.GetDirectories(themesRoot); // This is fine, getting folder names
             foreach (var folder in themeFolders)
             {
                 var xamlFiles = FileService.Instance.GetMediaFilesFromDirectory(folder); // Use FileService
@@ -170,14 +165,14 @@ namespace Adoracion
                     try
                     {
                         // Use string searching for metadata to avoid heavy ResourceDictionary instantiation
-                        string content = File.ReadAllText(file);
+                        string content = System.IO.File.ReadAllText(file);
                         if (content.Contains("x:Key=\"ThemeName\"") && content.Contains("x:Key=\"ThemeMode\""))
                         {
                             // We only load the dictionary if it appears to be a valid theme file // This is fine, it's a WPF specific action
                             var dict = new ResourceDictionary { Source = new Uri(file, UriKind.Absolute) };
                             list.Add(new ThemeMetadata
                             {
-                                Name = dict["ThemeName"] as string ?? Path.GetFileNameWithoutExtension(file),
+                                Name = dict["ThemeName"] as string ?? System.IO.Path.GetFileNameWithoutExtension(file),
                                 Author = dict["ThemeAuthor"] as string ?? "Unknown",
                                 Mode = dict["ThemeMode"] as string ?? "Dark",
                                 FilePath = file
@@ -1109,7 +1104,7 @@ namespace Adoracion
                 // Load existing settings
                 if (FileService.Instance.FileExists(SETTINGS_FILE)) // Use FileService
                 {
-                    string json = File.ReadAllText(SETTINGS_FILE);
+                    string json = System.IO.File.ReadAllText(SETTINGS_FILE);
                     var doc = JsonDocument.Parse(json);
                     foreach (var property in doc.RootElement.EnumerateObject())
                     {

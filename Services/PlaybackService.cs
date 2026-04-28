@@ -9,9 +9,6 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using LibVLCSharp.Shared;
 
 namespace Adoracion.Services

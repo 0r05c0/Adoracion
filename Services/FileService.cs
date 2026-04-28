@@ -9,12 +9,7 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Adoracion.Helpers; // For MediaHelper.AllAllowedExtensions
 
 namespace Adoracion.Services

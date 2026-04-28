@@ -9,16 +9,13 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
-using System.Collections.Generic;
-using System.IO;
 using Microsoft.Data.Sqlite;
 
 namespace Adoracion.Services
 {
     public static class FavoritesService
     {
-        private static readonly string DbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "favorites.db");
+        private static readonly string DbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "favorites.db");
         private static readonly string ConnectionString = $"Data Source={DbPath}";
 
         static FavoritesService()

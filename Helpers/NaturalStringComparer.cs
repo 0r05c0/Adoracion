@@ -9,8 +9,6 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace Adoracion.Helpers

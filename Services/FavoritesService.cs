@@ -15,7 +15,7 @@ namespace Adoracion.Services
 {
     public static class FavoritesService
     {
-        private static readonly string DbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "favorites.db");
+        private static readonly string DbPath = FileService.Instance.CombinePath(AppDomain.CurrentDomain.BaseDirectory, "favorites.db");
         private static readonly string ConnectionString = $"Data Source={DbPath}";
 
         static FavoritesService()

@@ -33,7 +33,7 @@ namespace Adoracion
             base.OnStartup(e);
             
             // Initialize localization service
-            string translationsPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources", "Languages.json");
+            string translationsPath = FileService.Instance.CombinePath(AppDomain.CurrentDomain.BaseDirectory, "resources", "Languages.json");
             TranslationHelper.Initialize(translationsPath);
 
             // Load and apply saved theme
@@ -52,7 +52,7 @@ namespace Adoracion
 
                 if (FileService.Instance.FileExists(SETTINGS_FILE)) // Use FileService
                 {
-                    string json = System.IO.File.ReadAllText(SETTINGS_FILE);
+                    string json = FileService.Instance.ReadAllText(SETTINGS_FILE);
                     using (JsonDocument doc = JsonDocument.Parse(json))
                     { 
                         if (doc.RootElement.TryGetProperty("ThemeName", out JsonElement nameEl))
@@ -124,10 +124,10 @@ namespace Adoracion
 
         private string? ResolveThemePath(string themeName, string themeMode)
         {
-            string themesRoot = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Themes", "Color_Themes");
+            string themesRoot = FileService.Instance.CombinePath(AppDomain.CurrentDomain.BaseDirectory, "Themes", "Color_Themes");
             if (!FileService.Instance.DirectoryExists(themesRoot)) return null; // Use FileService
 
-            var themeFolders = System.IO.Directory.GetDirectories(themesRoot); // This is fine, getting folder names
+            var themeFolders = FileService.Instance.GetDirectories(themesRoot);
             foreach (var folder in themeFolders)
             {
                 var xamlFiles = FileService.Instance.GetMediaFilesFromDirectory(folder); // Use FileService

@@ -33,7 +33,7 @@ namespace Adoracion.Helpers
                 
                 if (string.IsNullOrEmpty(translationsFilePath))
                 {
-                    translationsFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources", "Languages.json");
+                    translationsFilePath = FileService.Instance.CombinePath(AppDomain.CurrentDomain.BaseDirectory, "resources", "Languages.json");
                 }
                 
                 _localizationService.Initialize(translationsFilePath);

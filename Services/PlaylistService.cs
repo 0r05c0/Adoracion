@@ -17,7 +17,7 @@ namespace Adoracion.Services
 {
     public static class PlaylistService
     {
-        private static readonly string DbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "playlists.db");
+        private static readonly string DbPath = FileService.Instance.CombinePath(AppDomain.CurrentDomain.BaseDirectory, "playlists.db");
         private static readonly string ConnectionString = $"Data Source={DbPath}";
 
         static PlaylistService()

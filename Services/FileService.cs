@@ -51,6 +51,38 @@ namespace Adoracion.Services
             return Path.GetExtension(filePath);
         }
 
+        public string GetFullPath(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) return string.Empty;
+            return Path.GetFullPath(filePath);
+        }
+
+        public string? GetDirectoryName(string? filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) return null;
+            return Path.GetDirectoryName(filePath);
+        }
+
+        public string? GetPathRoot(string? path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+            return Path.GetPathRoot(path);
+        }
+
+        public string[] GetDirectories(string path)
+        {
+            if (!DirectoryExists(path)) return Array.Empty<string>();
+            try
+            {
+                return Directory.GetDirectories(path);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Instance.Log($"Error getting directories in {path}: {ex.Message}");
+                return Array.Empty<string>();
+            }
+        }
+
         public void OpenInExplorer(string? filePath)
         {
             LoggingService.Instance.Log($"OpenInExplorer: Request received for path: '{filePath ?? "null"}'");
@@ -188,7 +220,7 @@ namespace Adoracion.Services
         {
             try
             {
-                string? directory = Path.GetDirectoryName(filePath);
+                string? directory = GetDirectoryName(filePath);
                 if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
@@ -201,6 +233,22 @@ namespace Adoracion.Services
             }
         }
 
+        public void AppendAllText(string filePath, string content)
+        {
+            try
+            {
+                string? directory = GetDirectoryName(filePath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+                File.AppendAllText(filePath, $"{content}{Environment.NewLine}", System.Text.Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Instance.Log($"Error appending to file {filePath}: {ex.Message}");
+            }
+        }
         public void CreateDirectory(string path)
         {
             try

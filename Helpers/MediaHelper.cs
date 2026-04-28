@@ -10,6 +10,7 @@
  * See the LICENSE file distributed with this project for full terms.
  */
 using Adoracion.Models;
+using Adoracion.Services;
 
 namespace Adoracion.Helpers
 {
@@ -31,13 +32,24 @@ namespace Adoracion.Helpers
         public static MediaType DetermineMediaType(string? path)
         {
             if (string.IsNullOrEmpty(path)) return MediaType.Unknown;
-            string ext = System.IO.Path.GetExtension(path).ToLower();
+            string ext = FileService.Instance.GetFileExtension(path).ToLower();
 
             if (ImageExtensions.Contains(ext)) return MediaType.Image;
             if (AudioExtensions.Contains(ext)) return MediaType.Audio;
             if (VideoExtensions.Contains(ext)) return MediaType.Video;
 
             return MediaType.Unknown;
+        }
+
+        public static bool IsImageFile(string? filePath)
+        {
+            return DetermineMediaType(filePath) == MediaType.Image;
+        }
+
+        public static bool IsVisualMedia(string currentMediaUrl)
+        {
+            string ext = FileService.Instance.GetFileExtension(currentMediaUrl).ToLower();
+            return !AudioExtensions.Contains(ext);
         }
     }
 }

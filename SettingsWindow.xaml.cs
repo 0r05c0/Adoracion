@@ -62,6 +62,9 @@ namespace Adoracion
             InitializeMediaFolders();
             InitializeLanguageDropdown();
             InitializeScreenDropdown();
+
+            // Subscribe to monitor changes
+            ScreenService.Instance.DisplayConfigurationChanged += OnDisplayConfigurationChanged;
             
             UpdateThemeSelection(_currentThemeMode);
             UpdateCustomThemesDropdown(_currentThemeMode);
@@ -86,6 +89,11 @@ namespace Adoracion
             AppSettingsService.SettingChanged += OnSettingChanged;
 
             RefreshUIText();
+        }
+
+        private void OnDisplayConfigurationChanged()
+        {
+            Dispatcher.BeginInvoke(new Action(() => InitializeScreenDropdown()));
         }
 
         private void TranslationHelper_LanguageChanged(object? sender, LanguageChangedEventArgs e)
@@ -438,6 +446,7 @@ namespace Adoracion
         {
             if (!_isActuallyClosing)
             {
+                ScreenService.Instance.DisplayConfigurationChanged -= OnDisplayConfigurationChanged;
                 e.Cancel = true;
                 var fadeOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.3))
                 {

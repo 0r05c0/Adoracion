@@ -1382,6 +1382,9 @@ namespace Adoracion
             updateTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             updateTimer.Tick += UpdateTimer_Tick;
 
+            // Subscribe to monitor changes
+            ScreenService.Instance.DisplayConfigurationChanged += OnDisplayConfigurationChanged;
+
             PlaybackService.Instance.PlaybackStateChanged += (s, ev) =>
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
@@ -1423,6 +1426,11 @@ namespace Adoracion
             _splash?.Close();
             _splash = null;
             this.Activate(); // Bring main window to front
+        }
+
+        private void OnDisplayConfigurationChanged()
+        {
+            Dispatcher.BeginInvoke(new Action(() => InitializeMonitors()));
         }
 
         private void CrossfadeToggle_Changed(object sender, RoutedEventArgs e)
@@ -1841,6 +1849,7 @@ namespace Adoracion
         /// </summary>
         protected override void OnClosed(EventArgs e)
         {
+            ScreenService.Instance.DisplayConfigurationChanged -= OnDisplayConfigurationChanged;
             mediaScreen?.Close();
             System.Windows.Application.Current.Shutdown();
         }

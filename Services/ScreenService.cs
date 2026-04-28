@@ -28,7 +28,19 @@ namespace Adoracion.Services
         private static readonly Lazy<ScreenService> _instance = new Lazy<ScreenService>(() => new ScreenService());
         public static ScreenService Instance => _instance.Value;
 
-        private ScreenService() { }
+        /// <summary>
+        /// Triggered when the system's display configuration (resolution, count, etc.) changes.
+        /// </summary>
+        public event Action? DisplayConfigurationChanged;
+
+        private ScreenService() 
+        {
+            // Listen for global display setting changes
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += (s, e) => 
+            {
+                DisplayConfigurationChanged?.Invoke();
+            };
+        }
 
         /// <summary>
         /// Retrieves a list of all available display screens.
@@ -232,7 +244,7 @@ namespace Adoracion.Services
                 string? deviceName = item.Tag as string;
                 AppSettingsService.SetSetting("SelectedScreen", deviceName ?? "");
             }
-        }
+        }        
 
         /// <summary>
         /// Generates a user-friendly display name for a screen.

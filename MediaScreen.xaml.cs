@@ -938,12 +938,11 @@ namespace Adoracion
 
             var fadeOutAnimation = new DoubleAnimation
             {
-                To = 0.0,
+                To = 0.05,
                 Duration = TimeSpan.FromSeconds(0.6),
                 EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
             };
 
-            fadeOutAnimation.Completed += (s, e) => ControlsOverlay.Visibility = Visibility.Hidden;
             ControlsOverlay.BeginAnimation(UIElement.OpacityProperty, fadeOutAnimation);
         }
 

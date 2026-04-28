@@ -16,10 +16,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Page Remove="SecondaryControlWindow.xaml" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Folder Include="Models\" />
   </ItemGroup>
 
@@ -64,10 +60,6 @@
     <Content Include="Themes\Color_Themes\**\*.xaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="UserSettings.json" />
   </ItemGroup>
 
   <ItemGroup>

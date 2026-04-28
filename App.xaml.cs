@@ -9,9 +9,6 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
-using System.Configuration;
-using System.IO;
 using System.Text.Json;
 using System.Windows;
 using Adoracion.Helpers;
@@ -36,7 +33,7 @@ namespace Adoracion
             base.OnStartup(e);
             
             // Initialize localization service
-            string translationsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources", "Languages.json");
+            string translationsPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources", "Languages.json");
             TranslationHelper.Initialize(translationsPath);
 
             // Load and apply saved theme
@@ -55,7 +52,7 @@ namespace Adoracion
 
                 if (FileService.Instance.FileExists(SETTINGS_FILE)) // Use FileService
                 {
-                    string json = File.ReadAllText(SETTINGS_FILE);
+                    string json = System.IO.File.ReadAllText(SETTINGS_FILE);
                     using (JsonDocument doc = JsonDocument.Parse(json))
                     { 
                         if (doc.RootElement.TryGetProperty("ThemeName", out JsonElement nameEl))
@@ -127,10 +124,10 @@ namespace Adoracion
 
         private string? ResolveThemePath(string themeName, string themeMode)
         {
-            string themesRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Themes", "Color_Themes");
+            string themesRoot = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Themes", "Color_Themes");
             if (!FileService.Instance.DirectoryExists(themesRoot)) return null; // Use FileService
 
-            var themeFolders = Directory.GetDirectories(themesRoot); // This is fine, getting folder names
+            var themeFolders = System.IO.Directory.GetDirectories(themesRoot); // This is fine, getting folder names
             foreach (var folder in themeFolders)
             {
                 var xamlFiles = FileService.Instance.GetMediaFilesFromDirectory(folder); // Use FileService

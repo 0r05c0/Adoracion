@@ -9,11 +9,8 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
-using System.Threading.Tasks;
 using Octokit;
 
 namespace Adoracion.Services

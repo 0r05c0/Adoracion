@@ -9,8 +9,6 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System.IO;
-using System.Linq;
 using Adoracion.Models;
 
 namespace Adoracion.Helpers
@@ -33,7 +31,7 @@ namespace Adoracion.Helpers
         public static MediaType DetermineMediaType(string? path)
         {
             if (string.IsNullOrEmpty(path)) return MediaType.Unknown;
-            string ext = Path.GetExtension(path).ToLower();
+            string ext = System.IO.Path.GetExtension(path).ToLower();
 
             if (ImageExtensions.Contains(ext)) return MediaType.Image;
             if (AudioExtensions.Contains(ext)) return MediaType.Audio;

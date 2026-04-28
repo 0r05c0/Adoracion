@@ -9,8 +9,6 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
-using System.IO;
 
 namespace Adoracion.Services
 {
@@ -26,7 +24,7 @@ namespace Adoracion.Services
 
         private LoggingService()
         {
-            _logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Adoracion_Logging_Debug.log");
+            _logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Adoracion_Logging_Debug.log");
         }
 
         public void Log(string message)
@@ -38,7 +36,7 @@ namespace Adoracion.Services
 
                 if (!isEnabled) return;
 
-                File.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
+                System.IO.File.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}{Environment.NewLine}");
             }
             catch { /* Ignore logging failures */ }
         }

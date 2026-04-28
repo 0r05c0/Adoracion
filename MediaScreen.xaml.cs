@@ -9,9 +9,6 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
-using System.IO;
-using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;

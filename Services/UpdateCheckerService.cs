@@ -10,15 +10,10 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
-using System.Net.Http;
 using System.Reflection;
-using System.Threading.Tasks;
-using Octokit;
 
 namespace Adoracion.Services
 {

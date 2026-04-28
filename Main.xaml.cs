@@ -9,15 +9,9 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -26,7 +20,6 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using LibVLCSharp.Shared;
-using Adoracion.Converters;
 using Adoracion.Models; // Added for MediaFile and ScreenInfo
 using Adoracion.Helpers;
 using Adoracion.Services;
@@ -651,7 +644,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
                 // Set DataContext of the Local tab to the absolute Hymns path (exe location /Hymns)
                 if (LibraryTabs.Items.Count > 0 && LibraryTabs.Items[0] is TabItem local)
                 {
-                    local.DataContext = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Hymns");
+                    local.DataContext = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Hymns");
                 }
                 LibraryLoadingState.Visibility = Visibility.Collapsed;
                 });
@@ -828,7 +821,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
         {
             if (FolderExplorer.SelectedItem is string filePath) // filePath is already the full path
             {
-                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
+                if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath)) return;
 
                 if (!mediaFiles.Any(m => m.FilePath == filePath))
                 {
@@ -882,7 +875,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
         private void OpenHymnsFolder_Click(object sender, RoutedEventArgs e)
         {
             // Hardcoded fallback for the Local tab to ensure it works immediately
-            string hymnsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Hymns");
+            string hymnsPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Hymns");
 
             // Edge case: If the user deleted the folder while the app was open, recreate it now
             if (!FileService.Instance.DirectoryExists(hymnsPath))
@@ -946,7 +939,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
 
             if (string.IsNullOrEmpty(filePath)) return null;
             
-            if (!File.Exists(filePath))
+            if (!System.IO.File.Exists(filePath))
             {
                 // Localize the message and title for the ModernMessageBox
                 string message = TranslationHelper.GetString("Error_FileNotFound", "The file could not be found at the specified path:") + Environment.NewLine + filePath;
@@ -991,7 +984,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
                 }
                 mediaFiles.Add(fileToPlay);
             }
-            LoggingService.Instance.Log($"GetOrAddLibraryFileAsync: Exit for {Path.GetFileName(filePath)}, returning {fileToPlay?.Name}");
+            LoggingService.Instance.Log($"GetOrAddLibraryFileAsync: Exit for {System.IO.Path.GetFileName(filePath)}, returning {fileToPlay?.Name}");
             return fileToPlay;
         }        
 
@@ -1093,7 +1086,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
             {
                 if (string.IsNullOrEmpty(file.FilePath)) return;
 
-                if (!File.Exists(file.FilePath))
+                if (!System.IO.File.Exists(file.FilePath))
                 {
                     file.IsMissing = true;
                     string message = TranslationHelper.GetString("Error_FileNotFound", "The file could not be found at the specified path:") + Environment.NewLine + file.FilePath;
@@ -1185,7 +1178,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
 
                 if (file != null)
                 {
-                    if (File.Exists(file.FilePath))
+                    if (System.IO.File.Exists(file.FilePath))
                     {
                         file.IsMissing = false;
                         currentPlaylistIndex = mediaFiles.IndexOf(file); // This line is duplicated above, consider removing.
@@ -1555,7 +1548,7 @@ private void MonitorComboBox_SelectionChanged(object sender, SelectionChangedEve
                 mediaFiles.Clear();
                 foreach (var item in openWindow.SelectedPlaylistItems)
                 {
-                    item.IsMissing = !File.Exists(item.FilePath);
+                    item.IsMissing = !System.IO.File.Exists(item.FilePath);
                     mediaFiles.Add(item);
                 }
                 currentPlaylistIndex = -1;

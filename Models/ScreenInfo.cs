@@ -9,8 +9,6 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
-using System.Drawing;
-
 namespace Adoracion.Models
 {
     /// <summary>

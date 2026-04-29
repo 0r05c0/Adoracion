@@ -11,7 +11,7 @@
     <Company>Matias Orosco</Company>
     <PackageReadmeFile>README.md</PackageReadmeFile>
 	<!-- Version settings -->
-	<AssemblyVersion>0.9.0.14</AssemblyVersion>
+	<AssemblyVersion>0.9.0.15</AssemblyVersion>
     <AssemblyName>Adoracion</AssemblyName>
   </PropertyGroup>
 
@@ -30,9 +30,9 @@
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
-    <None Update="resources\Languages.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <Content Include="resources\Languages.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Compile Update="Models\MediaFile.cs" />
     <Compile Update="Models\ScreenInfo.cs" />
   </ItemGroup>
@@ -50,9 +50,9 @@
     <None Update="Hymns\add_media_here.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="resources\default_background.jpg">
+    <Content Include="resources\default_background.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -63,8 +63,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="UserSettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Resource>
+    <Content Include="UserSettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>

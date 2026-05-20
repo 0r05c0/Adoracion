@@ -1,4 +1,4 @@
-﻿/*
+﻿﻿/*
  * This file is part of the Adoracion project (https://github.com/0r05c0/Adoracion).
  * Copyright (C) 2026 Matias Orosco 
  * 
@@ -1579,6 +1579,9 @@ namespace Adoracion
                 }
             }
             _currentPlaceholder = newPlaceholder; // Update the stored placeholder
+
+            // Refresh the monitor list so "Primary/Secondary" labels update immediately
+            InitializeMonitors();
                 
             if (LibraryEmptyLabel != null)
             {

@@ -338,11 +338,6 @@ namespace Adoracion
                 lblLightMode.Text = TranslationHelper.GetString("Label_LightMode", "Light Mode");
             if (FindName("LabelDarkMode") is TextBlock lblDarkMode)
                 lblDarkMode.Text = TranslationHelper.GetString("Label_DarkMode", "Dark Mode");
-            
-            // review it
-            if (FindName("LabelHarlequinMode") is TextBlock lblHarlequinMode)
-                lblHarlequinMode.Text = TranslationHelper.GetString("Label_HarlequinMode", "Harlequin Mode");
-            
             if (FindName("LabelCustomTheme") is TextBlock lblCustomTheme)
                 lblCustomTheme.Text = TranslationHelper.GetString("Label_CustomTheme", "Custom Accent Theme");           
             if (FindName("LabelOverlayTextHeader") is TextBlock lblOverlayHeader)

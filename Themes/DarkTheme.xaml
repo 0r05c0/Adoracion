@@ -67,8 +67,8 @@
 
     <!-- Gradients -->
     <LinearGradientBrush x:Key="DisplayInfoBackground" EndPoint="0.5,1" StartPoint="0.5,0">
-        <GradientStop Color="#FF02003A" Offset="0"/>
-        <GradientStop Color="#FF02003A" Offset="1"/>
+        <GradientStop Color="#02003A" Offset="0"/>
+        <GradientStop Color="#00000e" Offset="1"/>
     </LinearGradientBrush>
 
     <!-- ############################################################################### -->
@@ -615,9 +615,9 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Icon area: show Tag if set, otherwise render accent box -->
-                                    <Border Width="36" Height="36" CornerRadius="8" Background="{DynamicResource Primary}" VerticalAlignment="Center" Margin="6,0,10,0">
-                                        <TextBlock Text="{TemplateBinding Tag}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White" FontSize="14"/>
+                                    <!-- Icon area: show Tag (Geometry) if set -->
+                                    <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource Primary}" VerticalAlignment="Center" Margin="6,0,10,0">
+                                        <Path Data="{TemplateBinding Tag}" Fill="White" Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
 
                                     <!-- Selected content -->
@@ -673,7 +673,14 @@
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBoxItem">
                     <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="6" Margin="2,1">
-                        <ContentPresenter />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="22"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Ellipse x:Name="CheckDot" Width="8" Height="8" Fill="{DynamicResource Primary}" Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                            <ContentPresenter Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsHighlighted" Value="True">
@@ -681,7 +688,7 @@
                             <Setter Property="Foreground" Value="{DynamicResource TextLight}"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Primary}"/>
+                            <Setter TargetName="CheckDot" Property="Visibility" Value="Visible"/>
                             <Setter Property="Foreground" Value="{DynamicResource TextLight}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>

@@ -252,7 +252,7 @@ namespace Adoracion.Services
         private string GetScreenDisplayName(Screen screen)
         {
             // Example: "\\.\DISPLAY1 (Primary)" or "\\.\DISPLAY2"
-            string name = screen.DeviceName.Replace("\\\\.\\", ""); // Remove common prefix
+            string name = screen.DeviceName.Replace("\\\\.\\", "");
             return $"{name} ({(screen.Primary ? TranslationHelper.GetString("Label_Primary", "Primary") : TranslationHelper.GetString("Label_Secondary","Secondary"))})";
         }
     }

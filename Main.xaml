@@ -265,7 +265,7 @@
 
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,61,0" Height="40">
                         <Path Fill="{DynamicResource Primary}" Data="{StaticResource AppIcon}" Width="40" Height="40" Stretch="Uniform"/>
-                        <TextBlock Text="Adoracion" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource Primary}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        <TextBlock Text="{Binding [Label_AppName], Source={x:Static services:LocalizationService.Instance}}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource Primary}" VerticalAlignment="Center" Margin="10,0,0,0"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Height="40" Width="367" HorizontalAlignment="Right">
@@ -310,13 +310,14 @@
                                 <Button x:Name="AddTabButton" Click="AddTabButton_Click"
                                         Style="{DynamicResource PlayerControlButton}"
                                         HorizontalAlignment="Right" VerticalAlignment="Top"
-                                        Width="32" Height="32" Margin="0,-10,4,0" Visibility="Collapsed" Grid.Column="1">
+                                        Width="32" Height="32" Margin="0,-10,4,0" Visibility="Collapsed" Grid.Column="1"
+                                        ToolTip="{Binding [Button_AddFolder], Source={x:Static services:LocalizationService.Instance}}">
                                     <Path Data="{StaticResource AddIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="14" Height="14" Stretch="Uniform"/>
                                 </Button>
                             </Grid>
                             <Grid Margin="0,0,0,10">
                                 <TextBox x:Name="FolderFilterBox" 
-                                         Text="Search library..." 
+                                         Text="{Binding [Placeholder_SearchLibrary], Source={x:Static services:LocalizationService.Instance}, Mode=OneWay}" 
                                          Padding="38,10,32,10"
                                          Foreground="{DynamicResource TextSecondary}"
                                          TextChanged="FolderFilterBox_TextChanged"
@@ -359,10 +360,10 @@
                                                 <ColumnDefinition Width="32"/>
                                                 <!-- Fixed width for Remove -->
                                             </Grid.ColumnDefinitions>
-                                            <Button x:Name="LibraryAddButton" Grid.Column="0" Click="LibraryAddButton_Click" Style="{DynamicResource PlayerControlButton}" Width="28" Height="28" Margin="0,0,0,0" ToolTip="Add to Playlist" HorizontalAlignment="Left">
+                                            <Button x:Name="LibraryAddButton" Grid.Column="0" Click="LibraryAddButton_Click" Style="{DynamicResource PlayerControlButton}" Width="28" Height="28" Margin="0,0,0,0" ToolTip="{Binding [Tooltip_AddToPlaylist], Source={x:Static services:LocalizationService.Instance}}" HorizontalAlignment="Left">
                                                 <Path Data="{StaticResource AddIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform"/>
                                             </Button>
-                                            <Button x:Name="LibraryPlayButton" Grid.Column="1" Click="LibraryPlayButton_Click" Style="{DynamicResource PlayerControlButton}" Width="28" Height="28" Margin="0,0,2,0" ToolTip="Play Now" HorizontalAlignment="Left">
+                                            <Button x:Name="LibraryPlayButton" Grid.Column="1" Click="LibraryPlayButton_Click" Style="{DynamicResource PlayerControlButton}" Width="28" Height="28" Margin="0,0,2,0" ToolTip="{Binding [Tooltip_PlayNow], Source={x:Static services:LocalizationService.Instance}}" HorizontalAlignment="Left">
                                                 <Path Data="{StaticResource PlayArrowIcon}" Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Width="12" Height="12" Stretch="Uniform" Margin="2,0,0,0"/>
                                             </Button>
                                             <Grid Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Center" ToolTip="{Binding}" ClipToBounds="True" Margin="0,0,5,0">
@@ -375,7 +376,7 @@
                                                 </Grid.OpacityMask>
                                                 <TextBlock Text="{Binding Converter={StaticResource FullFileNameConverter}}" VerticalAlignment="Center" FontSize="13" TextTrimming="None" TextWrapping="NoWrap"/>
                                             </Grid>
-                                            <Button x:Name="LibraryRemoveButton" Grid.Column="3" Click="LibraryRemoveButton_Click" Style="{DynamicResource PlayerControlButton}" Width="28" Height="28" Margin="0,0,0,0" ToolTip="Remove Favorite" Visibility="Collapsed" HorizontalAlignment="Right">
+                                            <Button x:Name="LibraryRemoveButton" Grid.Column="3" Click="LibraryRemoveButton_Click" Style="{DynamicResource PlayerControlButton}" Width="28" Height="28" Margin="0,0,0,0" ToolTip="{Binding [Tooltip_RemoveFavorite], Source={x:Static services:LocalizationService.Instance}}" Visibility="Collapsed" HorizontalAlignment="Right">
                                                 <Path Data="{StaticResource CloseIcon}" Fill="{DynamicResource DeleteButtonRed}" Width="10" Height="10" Stretch="Uniform"/>
                                             </Button>
                                         </Grid>
@@ -629,7 +630,8 @@
                                                         </Button>
                                                         <Button Style="{DynamicResource PlayerControlButton}" 
                                                         Click="RemovePlaylistItem_Click"
-                                                        Width="24" Height="24">
+                                                        Width="24" Height="24"
+                                                        ToolTip="{Binding [Tooltip_RemovePlaylistItem], Source={x:Static services:LocalizationService.Instance}}">
                                                             <Path Data="{StaticResource CloseIcon}" 
                                                           Fill="{DynamicResource TextPrimary}" 
                                                           Stretch="Uniform" Width="10" Height="10"/>

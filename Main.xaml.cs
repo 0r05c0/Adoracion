@@ -1807,6 +1807,14 @@ namespace Adoracion
             }
         }
 
+        private void PlaylistView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!isPlaying && PlaylistView.SelectedItem is MediaFile file)
+            {
+                currentPlaylistIndex = mediaFiles.IndexOf(file);
+            }
+        }
+
         /// <summary>
         /// Dynamically adjusts the Title column width to stretch and fill available space,
         /// pushing the Actions column to the right edge of the playlist.

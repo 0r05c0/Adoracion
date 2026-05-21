@@ -424,6 +424,7 @@
                             MouseMove="PlaylistView_MouseMove" 
                             Drop="PlaylistView_Drop"
                             DragOver="PlaylistView_DragOver"                            
+                            SelectionChanged="PlaylistView_SelectionChanged"
                             VirtualizingPanel.IsVirtualizing="True"
                             VirtualizingPanel.VirtualizationMode="Recycling"
                             ScrollViewer.CanContentScroll="True" BorderThickness="1,1,1,1" Margin="5,0,0,0"

@@ -1266,7 +1266,6 @@ namespace Adoracion
             // Reset UI and state immediately
             selectedFile = null;
             TrackTitleTextBlock.Text = string.Empty;
-            currentPlaylistIndex = -1;
             foreach (var m in mediaFiles) m.IsPlaying = false;
 
             // 1. Trigger the visual transition to idle (wallpaper/label) first.

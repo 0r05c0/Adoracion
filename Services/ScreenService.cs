@@ -86,7 +86,7 @@ namespace Adoracion.Services
 
             return screens.FirstOrDefault(s => s.DeviceName != mediaScreenName)
                    ?? GetPrimaryScreen()
-                   ?? screens[0];
+                   ?? screens.FirstOrDefault() ?? new ScreenInfo();
         }
 
         /// <summary>

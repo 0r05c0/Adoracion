@@ -225,8 +225,6 @@ namespace Adoracion
                     Width = 3,
                     Height = 5,
                     Margin = new Thickness(1),
-                    RadiusX = 1.5,
-                    RadiusY = 1.5,
                     VerticalAlignment = VerticalAlignment.Center
                 };
                 bar.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "Primary");
@@ -1629,9 +1627,12 @@ namespace Adoracion
             // Get indices for math
             if (PlaylistView.ItemContainerGenerator.ItemFromContainer(item) is not MediaFile targetFile) return;
             
+            if (_draggedData == null) return;
             int oldIdx = mediaFiles.IndexOf(_draggedData);
-                int targetIdx = mediaFiles.IndexOf(targetFile);
-                if (targetIdx == -1) return;
+            if (oldIdx == -1) return;
+
+            int targetIdx = mediaFiles.IndexOf(targetFile);
+            if (targetIdx == -1) return;
 
                 System.Windows.Point pos = e.GetPosition(item);
 
@@ -1673,27 +1674,27 @@ namespace Adoracion
                 if (oldIdx < potentialNewIndex) indexBelow++;
                 if (oldIdx < potentialNewIndex) indexAbove++;
 
-                _dragItemBelow = PlaylistView.ItemContainerGenerator.ContainerFromIndex(indexBelow) as System.Windows.Controls.ListViewItem;
-                _dragItemAbove = PlaylistView.ItemContainerGenerator.ContainerFromIndex(indexAbove) as System.Windows.Controls.ListViewItem;
+                _dragItemBelow = (indexBelow >= 0 && indexBelow < mediaFiles.Count) 
+                    ? PlaylistView.ItemContainerGenerator.ContainerFromIndex(indexBelow) as System.Windows.Controls.ListViewItem 
+                    : null;
+                _dragItemAbove = (indexAbove >= 0 && indexAbove < mediaFiles.Count) 
+                    ? PlaylistView.ItemContainerGenerator.ContainerFromIndex(indexAbove) as System.Windows.Controls.ListViewItem 
+                    : null;
 
                 // Create the "Both Move" effect
                 if (_dragItemBelow != null)
                 {
-                    _dragItemBelow.BorderThickness = new Thickness(0, 1, 0, 0); // Visual line at the gap
-                    //_dragItemBelow.Padding = new Thickness(_dragItemBelow.Padding.Left, 15, _dragItemBelow.Padding.Right, 0); // Shift down
+                    // Visual line at the gap
+                    _dragItemBelow.BorderThickness = new Thickness(0, 1, 0, 0);
+                    if (VisualTreeHelper.GetChildrenCount(_dragItemBelow) > 0 && VisualTreeHelper.GetChild(_dragItemBelow, 0) is Border b) b.CornerRadius = new CornerRadius(0);
                 }
-                if (_dragItemAbove != null)
+                if (_dragItemAbove != null && _dragItemBelow == null)
                 {
-                    // We shift the item above UP by using bottom padding
-                    //_dragItemAbove.Padding = new Thickness(_dragItemAbove.Padding.Left, 0, _dragItemAbove.Padding.Right, 15); // Shift up
+                    // Visual line at the gap
+                    _dragItemAbove.BorderThickness = new Thickness(0, 0, 0, 1);
+                    if (VisualTreeHelper.GetChildrenCount(_dragItemAbove) > 0 && VisualTreeHelper.GetChild(_dragItemAbove, 0) is Border b) b.CornerRadius = new CornerRadius(0);
                 }
             e.Handled = true;
-        }
-
-        private void PlaylistView_DragLeave(object sender, System.Windows.DragEventArgs e)
-        {
-            // Cleanup visual indicators when mouse leaves the list or items
-            ClearDragVisuals();
         }
 
         private void ClearDragVisuals()

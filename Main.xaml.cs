@@ -1,4 +1,4 @@
-﻿﻿/*
+﻿/*
  * This file is part of the Adoracion project (https://github.com/0r05c0/Adoracion).
  * Copyright (C) 2026 Matias Orosco 
  * 
@@ -43,6 +43,7 @@ namespace Adoracion
         private System.Windows.Controls.ListViewItem? _dragItemAbove;
         private System.Windows.Controls.ListViewItem? _dragItemBelow;
         private MediaFile? _draggedData;
+        private int _lastDropIndex = -1;
         private int _lastVolume = 100;
         private List<System.Windows.Shapes.Rectangle> visualizerBars = new List<System.Windows.Shapes.Rectangle>();
         private DispatcherTimer visualizerTimer;
@@ -1617,17 +1618,23 @@ namespace Adoracion
             e.Effects = System.Windows.DragDropEffects.Move;
             
             // Find the item container under the mouse
-            System.Windows.Controls.ListViewItem? item = FindAncestor<System.Windows.Controls.ListViewItem>((DependencyObject)e.OriginalSource);
-
-            if (item != null)
+            var originalSource = e.OriginalSource as DependencyObject;
+            System.Windows.Controls.ListViewItem? item = originalSource != null ? FindAncestor<System.Windows.Controls.ListViewItem>(originalSource) : null;
+            if (item == null)
             {
-                // Get indices for math
-                MediaFile targetFile = (MediaFile)PlaylistView.ItemContainerGenerator.ItemFromContainer(item);
-                int oldIdx = mediaFiles.IndexOf(_draggedData);
+                ClearDragVisuals();
+                return;
+            }
+
+            // Get indices for math
+            if (PlaylistView.ItemContainerGenerator.ItemFromContainer(item) is not MediaFile targetFile) return;
+            
+            int oldIdx = mediaFiles.IndexOf(_draggedData);
                 int targetIdx = mediaFiles.IndexOf(targetFile);
+                if (targetIdx == -1) return;
 
                 System.Windows.Point pos = e.GetPosition(item);
-                
+
                 // COMPENSATION: If this item is currently shifted by our padding, 
                 // adjust the mouse Y coordinate so the detection stays stable.
                 double adjustedY = pos.Y;
@@ -1636,29 +1643,25 @@ namespace Adoracion
                 // Thresholds: Use 30/70 to ensure deliberate movement.
                 // Calculate based on the original item height (ActualHeight minus the padding we added)
                 double originalHeight = item.ActualHeight - item.Padding.Top - item.Padding.Bottom;
-                bool isMouseInTopZone = adjustedY < originalHeight * 0.3;
-                bool isMouseInBottomZone = adjustedY > originalHeight * 0.7;
-
-                if (!isMouseInTopZone && !isMouseInBottomZone)
-                {
-                    ClearDragVisuals();
-                    return;
-                }
+                bool isTopHalf = adjustedY < originalHeight / 2;
 
                 // Calculate what the new index WOULD be if dropped here
                 int potentialNewIndex = targetIdx;
-                if (isMouseInBottomZone) potentialNewIndex++; 
+                if (!isTopHalf) potentialNewIndex++; 
                 if (oldIdx < potentialNewIndex) potentialNewIndex--;
 
-                // Issue: If the move is redundant (same position), don't show visual feedback
-                if (potentialNewIndex == oldIdx)
-                {
-                    ClearDragVisuals();
-                    return;
-                }
+            // Only update visuals if the drop position has actually changed
+            if (potentialNewIndex == _lastDropIndex) return;
 
                 // Clear visuals if the drop boundary has changed
                 ClearDragVisuals();
+            _lastDropIndex = potentialNewIndex;
+
+            // Maintain ghosting on the dragged item after ClearDragVisuals resets it
+            var sourceContainer = PlaylistView.ItemContainerGenerator.ContainerFromItem(_draggedData) as System.Windows.Controls.ListViewItem;
+            //if (sourceContainer != null) sourceContainer.Opacity = 0.5;
+
+            if (potentialNewIndex == oldIdx) return;
 
                 // Identify the two items forming the gap
                 // potentialNewIndex is the index where the item will land.
@@ -1676,15 +1679,14 @@ namespace Adoracion
                 // Create the "Both Move" effect
                 if (_dragItemBelow != null)
                 {
-                    _dragItemBelow.BorderThickness = new Thickness(0, 2, 0, 0); // Visual line at the gap
-                    _dragItemBelow.Padding = new Thickness(_dragItemBelow.Padding.Left, 15, _dragItemBelow.Padding.Right, 0); // Shift down
+                    _dragItemBelow.BorderThickness = new Thickness(0, 1, 0, 0); // Visual line at the gap
+                    //_dragItemBelow.Padding = new Thickness(_dragItemBelow.Padding.Left, 15, _dragItemBelow.Padding.Right, 0); // Shift down
                 }
                 if (_dragItemAbove != null)
                 {
                     // We shift the item above UP by using bottom padding
-                    _dragItemAbove.Padding = new Thickness(_dragItemAbove.Padding.Left, 0, _dragItemAbove.Padding.Right, 15); // Shift up
+                    //_dragItemAbove.Padding = new Thickness(_dragItemAbove.Padding.Left, 0, _dragItemAbove.Padding.Right, 15); // Shift up
                 }
-            }
             e.Handled = true;
         }
 
@@ -1696,6 +1698,7 @@ namespace Adoracion
 
         private void ClearDragVisuals()
         {
+            _lastDropIndex = -1;
             if (_dragItemAbove != null)
             {
                 // Use ClearValue to return to the original Style padding
@@ -1727,11 +1730,9 @@ namespace Adoracion
                 if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
                     Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
                 {
-                    System.Windows.Controls.ListViewItem? listViewItem = FindAncestor<System.Windows.Controls.ListViewItem>((DependencyObject)e.OriginalSource);
-                    if (listViewItem == null) return;
-
-                    MediaFile file = (MediaFile)PlaylistView.ItemContainerGenerator.ItemFromContainer(listViewItem);
-                    if (file == null) return;
+                    var originalSource = e.OriginalSource as DependencyObject;
+                    System.Windows.Controls.ListViewItem? listViewItem = originalSource != null ? FindAncestor<System.Windows.Controls.ListViewItem>(originalSource) : null;
+                    if (listViewItem == null || listViewItem.DataContext is not MediaFile file) return;
 
                     _draggedData = file;
                     listViewItem.Opacity = 0.5; // "Ghost" the source item
@@ -1750,16 +1751,18 @@ namespace Adoracion
             ClearDragVisuals();
             if (e.Data.GetDataPresent("MediaFile"))
             {
-                MediaFile droppedFile = e.Data.GetData("MediaFile") as MediaFile;
+                if (e.Data.GetData("MediaFile") is not MediaFile droppedFile) return;
+                
                 int oldIndex = mediaFiles.IndexOf(droppedFile);
 
-                System.Windows.Controls.ListViewItem? listViewItem = FindAncestor<System.Windows.Controls.ListViewItem>((DependencyObject)e.OriginalSource);
+                var originalSource = e.OriginalSource as DependencyObject;
+                System.Windows.Controls.ListViewItem? listViewItem = originalSource != null ? FindAncestor<System.Windows.Controls.ListViewItem>(originalSource) : null;
 
                 int newIndex = -1;
-                if (listViewItem != null)
+                if (listViewItem != null && listViewItem.DataContext is MediaFile targetFile)
                 {
-                    MediaFile targetFile = (MediaFile)PlaylistView.ItemContainerGenerator.ItemFromContainer(listViewItem);
                     newIndex = mediaFiles.IndexOf(targetFile);
+                    if (newIndex == -1) return;
                     
                     // Refine index based on whether we dropped on the top or bottom half
                     System.Windows.Point pos = e.GetPosition(listViewItem);
@@ -1768,15 +1771,10 @@ namespace Adoracion
 
                     double originalHeight = listViewItem.ActualHeight - listViewItem.Padding.Top - listViewItem.Padding.Bottom;
 
-                    // Match the 70/30 visual logic exactly
-                    if (adjustedY > originalHeight * 0.7)
+                    // Use 50/50 logic for consistent drop detection
+                    if (adjustedY > originalHeight / 2)
                     {
                         newIndex++; // Drop after the item
-                    }
-                    else if (adjustedY > originalHeight * 0.3)
-                    {
-                        // Mouse is in the middle "dead zone", prevent move by matching old index
-                        newIndex = oldIndex;
                     }
                     
                     // Adjust index if moving forward in list
@@ -1784,11 +1782,17 @@ namespace Adoracion
                 }
                 else
                 {
-                    newIndex = mediaFiles.Count - 1;
+                    // Handle drops on empty space (header or bottom area)
+                    var pos = e.GetPosition(PlaylistView);
+                    if (pos.Y < 40) newIndex = 0; // Drop at start if near the top/header
+                    else newIndex = mediaFiles.Count; // Drop at end otherwise
+                    
+                    if (oldIndex < newIndex) newIndex--;
                 }
 
                 if (oldIndex != -1 && newIndex != -1 && oldIndex != newIndex)
                 {
+                    if (newIndex >= mediaFiles.Count) newIndex = mediaFiles.Count - 1;
                     mediaFiles.Move(oldIndex, newIndex);
 
                     // Re-index all items to update the UI # column

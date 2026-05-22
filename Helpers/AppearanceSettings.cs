@@ -35,9 +35,9 @@ namespace Adoracion.Helpers
         public static string DefaultBackgroundImagePath => FileService.Instance.CombinePath(AppDomain.CurrentDomain.BaseDirectory, "resources", "default_background.jpg");
 
         // Centralized Getters
-        public static string GetOverlayPosition() => AppSettingsService.GetSetting(OverlayPositionKey, "TopCenter");
+        public static string GetOverlayPosition() => AppSettingsService.GetSetting(OverlayPositionKey, "BottomLeft");
         public static string GetOverlayText() => AppSettingsService.GetSetting(OverlayTextKey, DefaultOverlayText);
-        public static double GetFontSize() => double.Parse(AppSettingsService.GetSetting(FontSizeKey, "60"));
+        public static double GetFontSize() => double.Parse(AppSettingsService.GetSetting(FontSizeKey, "45"));
         public static double GetTextAlpha() => double.Parse(AppSettingsService.GetSetting(TextAlphaKey, "100"));
         public static string GetTextColor() => AppSettingsService.GetSetting(TextColorKey, "#FFFFFF");
         public static bool GetEnableShadow() => bool.Parse(AppSettingsService.GetSetting(EnableShadowKey, "True"));

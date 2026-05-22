@@ -309,19 +309,25 @@
             <ListBox x:Name="ItemsPreviewList" Grid.Row="5" Margin="0,0,0,20"
                      Background="{DynamicResource ItemBackground}" Foreground="{DynamicResource TextLight}"
                      BorderBrush="{DynamicResource ItemBorder}" BorderThickness="1"
-                     HorizontalContentAlignment="Stretch">
+                     HorizontalContentAlignment="Stretch" Panel.ZIndex="-1"
+                     ItemContainerStyle="{DynamicResource ListPreviewStyle}">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Grid Margin="5,2">
+                        <Grid Margin="8,2" HorizontalAlignment="Stretch">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*" MaxWidth="295"/>
+                                <ColumnDefinition Width="30" MinWidth="20"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center" 
-                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding Name}" 
+                                        ToolTip="{Binding Name}" 
+                                        FontSize="12" 
+                                        VerticalAlignment="Center"
+                                        TextTrimming="CharacterEllipsis"
+                                        TextWrapping="NoWrap"
+                                        MaxWidth="290"/>
                             <Button Grid.Column="1" Click="RemovePreviewItem_Click" ToolTip="{Binding [Tooltip_RemovePlaylistItem], Source={x:Static services:LocalizationService.Instance}}"
                                     Style="{DynamicResource PlayerControlButton}" 
-                                    Width="28" Height="28" Margin="8,0,0,0">
+                                    Width="20" Height="20" HorizontalAlignment="Right">
                                 <Path Data="{StaticResource CloseIcon}" Fill="{DynamicResource DeleteButtonRed}" 
                                       Width="10" Height="10" Stretch="Uniform"/>
                             </Button>

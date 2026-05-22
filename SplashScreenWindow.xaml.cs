@@ -10,6 +10,7 @@
  * See the LICENSE file distributed with this project for full terms.
  */
 using System.Windows;
+using System.Windows.Threading;
 
 namespace Adoracion
 {
@@ -23,6 +24,11 @@ namespace Adoracion
         public void UpdateStatus(string message)
         {
             StatusText.Text = message;
+
+            // Force the UI thread to process the message queue. 
+            // This allows the ProgressBar animation to advance and the StatusText to refresh 
+            // even if the main thread is busy with synchronous initialization logic.
+            Dispatcher.Invoke(() => { }, DispatcherPriority.Background);
         }
     }
 }

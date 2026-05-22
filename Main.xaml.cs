@@ -604,11 +604,6 @@ namespace Adoracion
                 
         private void FolderFilterBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (ClearFilterButton != null)
-            {
-                ClearFilterButton.Visibility = (string.IsNullOrEmpty(FolderFilterBox.Text) || FolderFilterBox.Text == _currentPlaceholder) 
-                    ? Visibility.Collapsed : Visibility.Visible;
-            }
             RefreshLibraryList();
         }
 
@@ -1266,7 +1261,6 @@ namespace Adoracion
             // Reset UI and state immediately
             selectedFile = null;
             TrackTitleTextBlock.Text = string.Empty;
-            currentPlaylistIndex = -1;
             foreach (var m in mediaFiles) m.IsPlaying = false;
 
             // 1. Trigger the visual transition to idle (wallpaper/label) first.
@@ -1805,6 +1799,14 @@ namespace Adoracion
                     // Update current index if playing
                     if (selectedFile != null) currentPlaylistIndex = mediaFiles.IndexOf(selectedFile);
                 }
+            }
+        }
+
+        private void PlaylistView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!isPlaying && PlaylistView.SelectedItem is MediaFile file)
+            {
+                currentPlaylistIndex = mediaFiles.IndexOf(file);
             }
         }
 

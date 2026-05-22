@@ -48,13 +48,22 @@ jobs:
           -o ./publish/${{ matrix.runtime }} `
           -p:PublishReadyToRun=true `
           -p:Version=$ver
+
+        # Compile Inno Setup Installer
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+          /DAppVersion=$ver `
+          /DSourcePath="./publish/${{ matrix.runtime }}" `
+          /DRuntime="${{ matrix.runtime }}" `
+          /O"./publish" `
+          installer_script.iss
+
         Compress-Archive -Path ./publish/${{ matrix.runtime }}/* -DestinationPath ./publish/Adoracion-${{ matrix.runtime }}.zip
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: Adoracion-${{ matrix.runtime }}
-        path: ./publish/Adoracion-${{ matrix.runtime }}.zip
+        path: ./publish/Adoracion-*
 
   release:
     # This job only runs on push to master or tags. It is skipped on Pull Request checks by design.
@@ -94,7 +103,7 @@ jobs:
           **Commit:** ${{ github.sha }}
         target_commitish: ${{ github.sha }}
         files: |
-          ./release-assets/*.zip
+          ./release-assets/*
         draft: false
         prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         make_latest: ${{ startsWith(github.ref, 'refs/tags/v') }}

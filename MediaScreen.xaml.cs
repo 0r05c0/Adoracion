@@ -282,8 +282,17 @@ namespace Adoracion
 
         private void RestoreContent()
         {
-            if (LabelOverlay != null) LabelOverlay.Visibility = Visibility.Visible;
-            LoadAndApplyBackgroundImage(force: true); // This will show/hide BackgroundImage based on settings
+            // If media is currently active, ensure the UI state matches the playback (e.g., hide labels/images for video)
+            if (_mediaPlayer != null && (_mediaPlayer.State == VLCState.Playing || _mediaPlayer.State == VLCState.Paused || 
+                _mediaPlayer.State == VLCState.Opening || _mediaPlayer.State == VLCState.Buffering))
+            {
+                HandleMediaStarted();
+                return;
+            }
+
+            // Otherwise, we are in idle mode: show the welcome label and the default wallpaper
+            if (LabelOverlay != null) ShowLabel();
+            LoadAndApplyBackgroundImage(force: false);
         }
 
         private void InitializeOverlayTimer()

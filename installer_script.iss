@@ -35,6 +35,10 @@ ArchitecturesAllowed=x64 x86
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "portuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl"
+Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
+Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked

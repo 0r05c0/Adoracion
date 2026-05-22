@@ -310,7 +310,7 @@
                      Background="{DynamicResource ItemBackground}" Foreground="{DynamicResource TextLight}"
                      BorderBrush="{DynamicResource ItemBorder}" BorderThickness="1"
                      HorizontalContentAlignment="Stretch" Panel.ZIndex="-1"
-                     ItemContainerStyle="{DynamicResource SidebarItemStyle}">
+                     ItemContainerStyle="{DynamicResource ListPreviewStyle}">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Grid Margin="8,2" HorizontalAlignment="Stretch">

@@ -604,11 +604,6 @@ namespace Adoracion
                 
         private void FolderFilterBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (ClearFilterButton != null)
-            {
-                ClearFilterButton.Visibility = (string.IsNullOrEmpty(FolderFilterBox.Text) || FolderFilterBox.Text == _currentPlaceholder) 
-                    ? Visibility.Collapsed : Visibility.Visible;
-            }
             RefreshLibraryList();
         }
 

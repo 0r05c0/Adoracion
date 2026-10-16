@@ -31,6 +31,7 @@ namespace Adoracion
     {
         private ObservableCollection<MediaFile> mediaFiles;
         private MediaFile? selectedFile;
+        private MediaFile? _playingItem;
         private DispatcherTimer updateTimer;
         private bool isPlaying = false;
         private bool _isActuallyClosing = false;
@@ -1222,6 +1223,16 @@ namespace Adoracion
             }
         }
 
+        private void SetPlayingItem(MediaFile? file)
+        {
+            if (_playingItem != null && !ReferenceEquals(_playingItem, file))
+                _playingItem.IsPlaying = false;
+
+            _playingItem = file;
+            if (file != null)
+                file.IsPlaying = true;
+        }
+
         private async void PlayMediaFile(MediaFile file)
         {
             _playCts?.Cancel(); // Cancel any pending setup (like the image pause timer) from the previous file
@@ -1244,8 +1255,7 @@ namespace Adoracion
             try
             {
                 // 1. Update UI state immediately (Lightweight)
-                foreach (var m in mediaFiles) m.IsPlaying = false;
-                file.IsPlaying = true;
+                SetPlayingItem(file);
                 selectedFile = file;
                 TrackTitleTextBlock.Text = file.Name;
 
@@ -1361,7 +1371,7 @@ namespace Adoracion
             // Reset UI and state immediately
             selectedFile = null;
             TrackTitleTextBlock.Text = string.Empty;
-            foreach (var m in mediaFiles) m.IsPlaying = false;
+            SetPlayingItem(null);
 
             // 1. Trigger the visual transition to idle (wallpaper/label) first.
             // This allows the overlay to fade in OVER the video before we stop the engine.
@@ -1550,6 +1560,7 @@ namespace Adoracion
             if (openWindow.ShowDialog() == true && openWindow.SelectedPlaylistItems != null)
             {
                 mediaFiles.Clear();
+                _playingItem = null;
                 foreach (var item in openWindow.SelectedPlaylistItems)
                 {
                     item.IsMissing = !FileService.Instance.FileExists(item.FilePath);

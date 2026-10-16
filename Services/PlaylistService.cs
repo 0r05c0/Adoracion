@@ -190,18 +190,22 @@ namespace Adoracion.Services
                     deleteCmd.ExecuteNonQuery();
 
                     int order = 0;
+                    var insertCmd = connection.CreateCommand();
+                    insertCmd.Transaction = transaction;
+                    insertCmd.CommandText = @"
+                        INSERT INTO PlaylistItems (PlaylistId, FileName, FilePath, Duration, SortOrder) 
+                        VALUES (@pid, @fname, @path, @dur, @order)";
+                    insertCmd.Parameters.AddWithValue("@pid", playlistId);
+                    insertCmd.Parameters.AddWithValue("@fname", "");
+                    insertCmd.Parameters.AddWithValue("@path", "");
+                    insertCmd.Parameters.AddWithValue("@dur", "");
+                    insertCmd.Parameters.AddWithValue("@order", 0);
                     foreach (var item in items)
                     {
-                        var insertCmd = connection.CreateCommand();
-                        insertCmd.Transaction = transaction;
-                        insertCmd.CommandText = @"
-                            INSERT INTO PlaylistItems (PlaylistId, FileName, FilePath, Duration, SortOrder) 
-                            VALUES (@pid, @fname, @path, @dur, @order)";
-                        insertCmd.Parameters.AddWithValue("@pid", playlistId);
-                        insertCmd.Parameters.AddWithValue("@fname", item.Name ?? "");
-                        insertCmd.Parameters.AddWithValue("@path", item.FilePath ?? "");
-                        insertCmd.Parameters.AddWithValue("@dur", item.Duration ?? "");
-                        insertCmd.Parameters.AddWithValue("@order", order++);
+                        insertCmd.Parameters["@fname"].Value = item.Name ?? "";
+                        insertCmd.Parameters["@path"].Value = item.FilePath ?? "";
+                        insertCmd.Parameters["@dur"].Value = item.Duration ?? "";
+                        insertCmd.Parameters["@order"].Value = order++;
                         insertCmd.ExecuteNonQuery();
                     }
                     transaction.Commit();
@@ -239,6 +243,7 @@ namespace Adoracion.Services
                     WHERE Playlists.Name = @name 
                     ORDER BY SortOrder";
                 command.Parameters.AddWithValue("@name", playlistName);
+                var favoritePaths = new HashSet<string>(FavoritesService.GetFavorites(), StringComparer.OrdinalIgnoreCase);
                 using (var reader = command.ExecuteReader())
                 {
                     int i = 1;
@@ -254,7 +259,7 @@ namespace Adoracion.Services
                             FilePath = path,
                             Duration = duration,
                             Index = i++,
-                            IsFavorite = FavoritesService.IsFavorite(path),
+                            IsFavorite = favoritePaths.Contains(path),
                             Type = type
                         });
                     }

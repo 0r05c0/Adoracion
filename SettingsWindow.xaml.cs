@@ -10,6 +10,7 @@
  * See the LICENSE file distributed with this project for full terms.
  */
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
@@ -46,10 +47,17 @@ namespace Adoracion
 
         private string _currentThemeName = "default";
         private string _currentThemeMode = "Dark";
+        private bool _suppressSliderPersist;
+        private readonly Dictionary<string, string> _dirtySliderSettings = new();
 
         public SettingsWindow()
         {
             InitializeComponent();
+            FontSizeSlider.LostMouseCapture += (_, _) => PersistSliderSetting(FontSizeSlider, AppearanceSettings.FontSizeKey);
+            TextAlphaSlider.LostMouseCapture += (_, _) => PersistSliderSetting(TextAlphaSlider, AppearanceSettings.TextAlphaKey);
+            ShadowBlurSlider.LostMouseCapture += (_, _) => PersistSliderSetting(ShadowBlurSlider, AppearanceSettings.ShadowBlurKey);
+            ShadowDepthSlider.LostMouseCapture += (_, _) => PersistSliderSetting(ShadowDepthSlider, AppearanceSettings.ShadowDepthKey);
+            ShadowOpacitySlider.LostMouseCapture += (_, _) => PersistSliderSetting(ShadowOpacitySlider, AppearanceSettings.ShadowOpacityKey);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -74,6 +82,7 @@ namespace Adoracion
             UpdatePositionVisuals(currentPos);
 
             OverlayTextBox.Text = AppearanceSettings.GetOverlayText();
+            _suppressSliderPersist = true;
             FontSizeSlider.Value = AppearanceSettings.GetFontSize();
             TextAlphaSlider.Value = AppearanceSettings.GetTextAlpha();
             UpdateColorVisuals(AppearanceSettings.GetTextColor());
@@ -82,6 +91,7 @@ namespace Adoracion
             ShadowBlurSlider.Value = AppearanceSettings.GetShadowBlur();
             ShadowDepthSlider.Value = AppearanceSettings.GetShadowDepth();
             ShadowOpacitySlider.Value = AppearanceSettings.GetShadowOpacity();
+            _suppressSliderPersist = false;
 
             LoadBackgroundImageSettings();
 
@@ -111,9 +121,10 @@ namespace Adoracion
                 if (paths != null)
                 {
                     foreach (var path in paths)
-                    { // Use FileService
-                        int count = FileService.Instance.DirectoryExists(path) ? FileService.Instance.GetFileCountInDirectory(path) : 0;
-                        folders.Add(new MediaFolder { Path = path, Count = count });
+                    {
+                        var folder = new MediaFolder { Path = path };
+                        folders.Add(folder);
+                        QueueFolderCount(folder);
                     }
                 }
             }
@@ -124,6 +135,25 @@ namespace Adoracion
 
             FoldersListControl.ItemsSource = folders;
             UpdateFolderLimitUI();
+        }
+
+        private void QueueFolderCount(MediaFolder folder)
+        {
+            if (string.IsNullOrEmpty(folder.Path) || !FileService.Instance.DirectoryExists(folder.Path)) return;
+            string path = folder.Path;
+            _ = Task.Run(() => FileService.Instance.GetFileCountInDirectory(path))
+                .ContinueWith(t =>
+                {
+                    if (t.Status != TaskStatus.RanToCompletion) return;
+                    try
+                    {
+                        folder.Count = t.Result;
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggingService.Instance.Log($"Error updating folder count for {path}: {ex.Message}");
+                    }
+                }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         private void InitializeLanguageDropdown()
@@ -439,6 +469,7 @@ namespace Adoracion
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
+            FlushDirtySliderSettings();
             if (!_isActuallyClosing)
             {
                 ScreenService.Instance.DisplayConfigurationChanged -= OnDisplayConfigurationChanged;
@@ -615,7 +646,9 @@ namespace Adoracion
                 var folders = FoldersListControl.ItemsSource as ObservableCollection<MediaFolder>;
                 if (folders != null)
                 {
-                    folders.Add(new MediaFolder { Path = dialog.SelectedPath, Count = 0 });
+                    var added = new MediaFolder { Path = dialog.SelectedPath };
+                    folders.Add(added);
+                    QueueFolderCount(added);
                     SaveMediaFolders();
                     UpdateFolderLimitUI();
                 }
@@ -720,26 +753,40 @@ namespace Adoracion
 
         private void ShadowBlurSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (this.IsLoaded)
-            {
-                AppSettingsService.SetSetting(AppearanceSettings.ShadowBlurKey, e.NewValue.ToString());
-            }
+            CacheSliderSetting(AppearanceSettings.ShadowBlurKey, e.NewValue);
         }
 
         private void ShadowDepthSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (this.IsLoaded)
-            {
-                AppSettingsService.SetSetting(AppearanceSettings.ShadowDepthKey, e.NewValue.ToString());
-            }
+            CacheSliderSetting(AppearanceSettings.ShadowDepthKey, e.NewValue);
         }
 
         private void ShadowOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (this.IsLoaded)
-            {
-                AppSettingsService.SetSetting(AppearanceSettings.ShadowOpacityKey, e.NewValue.ToString());
-            }
+            CacheSliderSetting(AppearanceSettings.ShadowOpacityKey, e.NewValue);
+        }
+
+        private void CacheSliderSetting(string key, double value)
+        {
+            if (!this.IsLoaded || _suppressSliderPersist) return;
+            string text = value.ToString();
+            _dirtySliderSettings[key] = text;
+            AppSettingsService.SetCachedSetting(key, text);
+        }
+
+        private void PersistSliderSetting(Slider slider, string key)
+        {
+            if (!_dirtySliderSettings.ContainsKey(key)) return;
+            AppSettingsService.SetSetting(key, slider.Value.ToString());
+            _dirtySliderSettings.Remove(key);
+        }
+
+        private void FlushDirtySliderSettings()
+        {
+            if (_dirtySliderSettings.Count == 0) return;
+            foreach (var pair in _dirtySliderSettings)
+                AppSettingsService.SetSetting(pair.Key, pair.Value);
+            _dirtySliderSettings.Clear();
         }
 
         private void UpdateShadowColorVisuals(string selectedColor)
@@ -773,18 +820,12 @@ namespace Adoracion
 
         private void TextAlphaSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (this.IsLoaded)
-            {
-                AppSettingsService.SetSetting(AppearanceSettings.TextAlphaKey, e.NewValue.ToString());
-            }
+            CacheSliderSetting(AppearanceSettings.TextAlphaKey, e.NewValue);
         }
 
         private void FontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (this.IsLoaded)
-            {
-                AppSettingsService.SetSetting(AppearanceSettings.FontSizeKey, e.NewValue.ToString());
-            }
+            CacheSliderSetting(AppearanceSettings.FontSizeKey, e.NewValue);
         }
 
         /// <summary>
@@ -847,7 +888,11 @@ namespace Adoracion
         {
             if (FileService.Instance.FileExists(imagePath)) // Use FileService
             {
-                BackgroundImagePreview.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(imagePath));
+                double previewWidth = BackgroundImagePreview.ActualWidth > 0
+                    ? BackgroundImagePreview.ActualWidth
+                    : BackgroundImagePreview.Width;
+                int decodeWidth = previewWidth > 0 ? (int)previewWidth : 480;
+                BackgroundImagePreview.Source = BitmapLoader.Load(imagePath, decodeWidth);
             }
             else
             {
@@ -1103,9 +1148,22 @@ namespace Adoracion
     /// <summary>
     /// Represents a media folder entry.
     /// </summary>
-    public class MediaFolder
+    public class MediaFolder : INotifyPropertyChanged
     {
-        public string Path { get; set; }
-        public int Count { get; set; }
+        public string Path { get; set; } = string.Empty;
+
+        private int _count;
+        public int Count
+        {
+            get => _count;
+            set
+            {
+                if (_count == value) return;
+                _count = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Count)));
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

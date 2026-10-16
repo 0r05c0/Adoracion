@@ -19,7 +19,12 @@ namespace Adoracion.Services
         private static readonly Lazy<FileService> _instance = new(() => new FileService());
         public static FileService Instance => _instance.Value;
 
+        private readonly object _mediaCacheLock = new();
+        private readonly Dictionary<string, List<string>> _mediaCache = new(StringComparer.OrdinalIgnoreCase);
+
         private FileService() { }
+
+        private static string MediaCacheKey(string path, bool recursive) => path + "|" + recursive;
 
         public bool FileExists(string? filePath)
         {
@@ -174,12 +179,63 @@ namespace Adoracion.Services
             }
         }
 
+        /// <summary>
+        /// Returns media files for a directory, scanning the disk only on the first request.
+        /// </summary>
+        public List<string> GetCachedMediaFiles(string path, bool recursive = false)
+        {
+            if (string.IsNullOrEmpty(path)) return new List<string>();
+
+            string key = MediaCacheKey(path, recursive);
+            lock (_mediaCacheLock)
+            {
+                if (_mediaCache.TryGetValue(key, out var cached))
+                    return new List<string>(cached);
+            }
+
+            var files = GetMediaFilesFromDirectory(path, recursive);
+            lock (_mediaCacheLock)
+            {
+                _mediaCache[key] = files;
+            }
+            return new List<string>(files);
+        }
+
+        public bool HasCachedMediaFiles(string path, bool recursive = false)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            lock (_mediaCacheLock)
+                return _mediaCache.ContainsKey(MediaCacheKey(path, recursive));
+        }
+
+        public void InvalidateMediaCache(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                InvalidateMediaCache();
+                return;
+            }
+
+            lock (_mediaCacheLock)
+            {
+                _mediaCache.Remove(MediaCacheKey(path, false));
+                _mediaCache.Remove(MediaCacheKey(path, true));
+            }
+        }
+
+        public void InvalidateMediaCache()
+        {
+            lock (_mediaCacheLock)
+                _mediaCache.Clear();
+        }
+
         public int GetFileCountInDirectory(string path)
         {
             if (!DirectoryExists(path)) return 0;
             try
             {
-                return Directory.GetFiles(path).Length;
+                return Directory.EnumerateFiles(path)
+                    .Count(f => MediaHelper.AllAllowedExtensions.Contains(GetFileExtension(f).ToLower()));
             }
             catch (Exception ex)
             {

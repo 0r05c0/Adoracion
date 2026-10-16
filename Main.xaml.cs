@@ -15,6 +15,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -31,6 +32,7 @@ namespace Adoracion
     {
         private ObservableCollection<MediaFile> mediaFiles;
         private MediaFile? selectedFile;
+        private MediaFile? _playingItem;
         private DispatcherTimer updateTimer;
         private bool isPlaying = false;
         private bool _isActuallyClosing = false;
@@ -46,12 +48,14 @@ namespace Adoracion
         private MediaFile? _draggedData;
         private int _lastDropIndex = -1;
         private int _lastVolume = 100;
-        private List<System.Windows.Shapes.Rectangle> visualizerBars = new List<System.Windows.Shapes.Rectangle>();
+        private List<ScaleTransform> visualizerScales = new List<ScaleTransform>();
         private DispatcherTimer visualizerTimer;
         private CancellationTokenSource? _playCts;
         private CancellationTokenSource? _libraryRefreshCts;
         private readonly ConcurrentDictionary<string, string> _durationCache = new(StringComparer.OrdinalIgnoreCase);
         private readonly SemaphoreSlim _durationParseSlots = new(2);
+        private DispatcherTimer? _libraryFilterTimer;
+        private string? _librarySourceKey;
         
         private double _normalLeft;
         private double _normalTop;
@@ -111,6 +115,7 @@ namespace Adoracion
         {
             Dispatcher.BeginInvoke(new Action(() =>
             {
+                FileService.Instance.InvalidateMediaCache();
                 UpdateLibraryTabs();
                 RefreshLibraryList();
 
@@ -219,19 +224,22 @@ namespace Adoracion
         {
             if (VisualizerContainer == null) return;
             VisualizerContainer.Children.Clear();
-            visualizerBars.Clear();
+            visualizerScales.Clear();
 
             for (int i = 0; i < 15; i++)
             {
+                var scale = new ScaleTransform(1, 5.0 / 35.0);
                 var bar = new System.Windows.Shapes.Rectangle
                 {
                     Width = 3,
-                    Height = 5,
+                    Height = 35,
                     Margin = new Thickness(1),
-                    VerticalAlignment = VerticalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
+                    RenderTransform = scale,
+                    RenderTransformOrigin = new System.Windows.Point(0.5, 0.5)
                 };
                 bar.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "Primary");
-                visualizerBars.Add(bar);
+                visualizerScales.Add(scale);
                 VisualizerContainer.Children.Add(bar);
             }
         }
@@ -259,17 +267,24 @@ namespace Adoracion
 
         private void VisualizerTimer_Tick(object? sender, EventArgs e)
         {
-            if (!isPlaying) return;
-            foreach (var bar in visualizerBars)
-            {
-                bar.Height = rand.Next(5, 35);
-            }
+            if (!isPlaying || WindowState == WindowState.Minimized) return;
+            foreach (ScaleTransform scale in visualizerScales)
+                scale.ScaleY = rand.Next(5, 35) / 35.0;
         }
 
         private void ResetVisualizer()
         {
-            foreach (var bar in visualizerBars)
-                bar.Height = 5;
+            foreach (ScaleTransform scale in visualizerScales)
+                scale.ScaleY = 5.0 / 35.0;
+        }
+
+        private void Main_StateChanged(object? sender, EventArgs e)
+        {
+            if (visualizerTimer == null) return;
+            if (WindowState == WindowState.Minimized)
+                visualizerTimer.Stop();
+            else if (isPlaying)
+                visualizerTimer.Start();
         }
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
@@ -278,6 +293,7 @@ namespace Adoracion
             settingsWindow.ShowDialog();
             
             // Refresh tabs in case folders were changed
+            FileService.Instance.InvalidateMediaCache();
             UpdateLibraryTabs();
             RefreshLibraryList();
         }
@@ -531,12 +547,11 @@ namespace Adoracion
                 LibraryLoadingState.Visibility = Visibility.Visible;
 
                 var fileList = await FileService.Instance.GetHymnFilesAsync();
-                
-                // Sort by file name after getting the full paths
-                var list = fileList.Select(f => FileService.Instance.GetFileName(f)).ToList();
-                list.Sort((s1, s2) => StrCmpLogicalW(s1, s2));
-                // Re-map to full paths for allHymnFiles
-                fileList = fileList.OrderBy(f => FileService.Instance.GetFileName(f), new NaturalStringComparer()).ToList();                Dispatcher.Invoke(() =>
+                fileList.Sort((a, b) => StrCmpLogicalW(
+                    FileService.Instance.GetFileName(a),
+                    FileService.Instance.GetFileName(b)));
+
+                Dispatcher.Invoke(() =>
                 {
                     HymnFiles.Clear();
                     allHymnFiles.Clear();
@@ -607,7 +622,7 @@ namespace Adoracion
                 
         private void FolderFilterBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            RefreshLibraryList();
+            ScheduleLibraryFilter();
         }
 
         /// <summary>
@@ -624,7 +639,9 @@ namespace Adoracion
                     return;
                 }
 
-                string? firstResult = HymnFiles.FirstOrDefault();
+                CancelLibraryFilter();
+                ApplyLibraryFilter();
+                string? firstResult = CollectionViewSource.GetDefaultView(HymnFiles).Cast<string>().FirstOrDefault();
                 if (!string.IsNullOrEmpty(firstResult))
                 {
                     await GetOrAddLibraryFileAsync(firstResult);
@@ -650,65 +667,158 @@ namespace Adoracion
             }
         }
 
+        private void ScheduleLibraryFilter()
+        {
+            if (FolderFilterBox == null || HymnFiles == null) return;
+
+            if (_libraryFilterTimer == null)
+            {
+                _libraryFilterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+                _libraryFilterTimer.Tick += (_, _) =>
+                {
+                    _libraryFilterTimer.Stop();
+                    ApplyLibraryFilter();
+                };
+            }
+
+            _libraryFilterTimer.Stop();
+            _libraryFilterTimer.Start();
+        }
+
+        private void CancelLibraryFilter()
+        {
+            _libraryFilterTimer?.Stop();
+        }
+
+        private string CurrentLibraryFilter()
+        {
+            if (FolderFilterBox == null) return string.Empty;
+            string placeholder = TranslationHelper.GetString("Placeholder_SearchLibrary", "Search library...");
+            string text = FolderFilterBox.Text ?? string.Empty;
+            if (text == placeholder) return string.Empty;
+            return text.Trim();
+        }
+
+        private void ApplyLibraryFilter()
+        {
+            if (HymnFiles == null) return;
+
+            string filter = CurrentLibraryFilter();
+            var view = CollectionViewSource.GetDefaultView(HymnFiles);
+            if (string.IsNullOrEmpty(filter))
+            {
+                view.Filter = null;
+                return;
+            }
+
+            view.Filter = item =>
+                item is string path &&
+                FileService.Instance.GetFileName(path).Contains(filter, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool SamePaths(IList<string> current, IReadOnlyList<string> next)
+        {
+            if (current.Count != next.Count) return false;
+            for (int i = 0; i < current.Count; i++)
+            {
+                if (!string.Equals(current[i], next[i], StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+            return true;
+        }
+
         private async void RefreshLibraryList()
         {
+            CancelLibraryFilter();
             if (FolderFilterBox == null || HymnFiles == null || LibraryTabs == null || LibraryLoadingState == null) return;
+
+            int selectedIndex = LibraryTabs.SelectedIndex;
+            if (selectedIndex < 0)
+            {
+                LibraryLoadingState.Visibility = Visibility.Collapsed;
+                ApplyLibraryFilter();
+                return;
+            }
 
             // Cancel any existing refresh task
             _libraryRefreshCts?.Cancel();
             _libraryRefreshCts = new CancellationTokenSource();
             var token = _libraryRefreshCts.Token;
 
-            LibraryLoadingState.Visibility = Visibility.Visible;
-
-            string placeholder = TranslationHelper.GetString("Placeholder_SearchLibrary", "Search library...");
-            string filter = (FolderFilterBox.Text == placeholder) ? string.Empty : FolderFilterBox.Text.Trim().ToLower();
-
-            int selectedIndex = LibraryTabs.SelectedIndex;
             TabItem? selectedTab = LibraryTabs.SelectedItem as TabItem;
 
             // CRITICAL: Capture necessary data on the UI thread before starting the background task.
             // Accessing selectedTab.Tag or allHymnFiles inside Task.Run causes cross-thread exceptions.
             string? directoryPath = selectedTab?.Tag as string;
+            string sourceKey = selectedIndex switch
+            {
+                0 => "local",
+                1 => "favorites",
+                _ => "dir:" + (directoryPath ?? string.Empty)
+            };
+
+            // The local list only changes when hymns are reloaded. Typing filters the view in place.
+            if (selectedIndex == 0 && sourceKey == _librarySourceKey)
+            {
+                LibraryLoadingState.Visibility = Visibility.Collapsed;
+                ApplyLibraryFilter();
+                return;
+            }
+
+            bool scanningFolder = selectedIndex > 1
+                && !string.IsNullOrEmpty(directoryPath)
+                && !FileService.Instance.HasCachedMediaFiles(directoryPath, recursive: true);
+            LibraryLoadingState.Visibility = scanningFolder ? Visibility.Visible : Visibility.Collapsed;
+
             List<string> localFilesSnapshot = allHymnFiles.ToList();
-            List<string> favoritesSnapshot = FavoritesService.GetFavorites().ToList();
+            List<string>? favoritesSnapshot = selectedIndex == 1 ? FavoritesService.GetFavorites() : null;
 
             try
             {
-                var filteredList = await Task.Run(() =>
+                var sourceList = await Task.Run(() =>
                 {
                     if (token.IsCancellationRequested) return new List<string>();
 
-                    IEnumerable<string> source = Enumerable.Empty<string>();
+                    List<string> source;
                     if (selectedIndex == 0) // Local
                     {
-                        source = localFilesSnapshot; 
+                        source = localFilesSnapshot;
                     }
                     else if (selectedIndex == 1) // Favorites
                     {
-                        source = favoritesSnapshot;
+                        source = favoritesSnapshot ?? new List<string>();
                     }
                     else if (selectedIndex > 1 && !string.IsNullOrEmpty(directoryPath))
                     {
-                        source = FileService.Instance.GetMediaFilesFromDirectory(directoryPath, recursive: true);
+                        source = FileService.Instance.GetCachedMediaFiles(directoryPath, recursive: true);
+                    }
+                    else
+                    {
+                        source = new List<string>();
                     }
 
-                    var filtered = source.Where(f => string.IsNullOrEmpty(filter) || FileService.Instance.GetFileName(f).ToLower().Contains(filter)).ToList();
-                    filtered.Sort((s1, s2) => StrCmpLogicalW(FileService.Instance.GetFileName(s1), FileService.Instance.GetFileName(s2)));
-                    return filtered;
+                    source.Sort((s1, s2) => StrCmpLogicalW(FileService.Instance.GetFileName(s1), FileService.Instance.GetFileName(s2)));
+                    return source;
                 }, token);
 
                 if (token.IsCancellationRequested) return;
 
-                HymnFiles.Clear();
-                foreach (var filePath in filteredList)
-                    HymnFiles.Add(filePath);
+                if (sourceKey != _librarySourceKey || !SamePaths(HymnFiles, sourceList))
+                {
+                    HymnFiles.Clear();
+                    foreach (var filePath in sourceList)
+                        HymnFiles.Add(filePath);
+                    _librarySourceKey = sourceKey;
+                }
+
+                ApplyLibraryFilter();
             }
             catch (OperationCanceledException) { /* Task was superseded */ }
             catch (Exception ex)
             {
                 LoggingService.Instance.Log($"RefreshLibraryList failed: {ex.Message}");
                 HymnFiles.Clear();
+                _librarySourceKey = null;
             }
             finally
             {
@@ -1129,6 +1239,16 @@ namespace Adoracion
             }
         }
 
+        private void SetPlayingItem(MediaFile? file)
+        {
+            if (_playingItem != null && !ReferenceEquals(_playingItem, file))
+                _playingItem.IsPlaying = false;
+
+            _playingItem = file;
+            if (file != null)
+                file.IsPlaying = true;
+        }
+
         private async void PlayMediaFile(MediaFile file)
         {
             _playCts?.Cancel(); // Cancel any pending setup (like the image pause timer) from the previous file
@@ -1151,8 +1271,7 @@ namespace Adoracion
             try
             {
                 // 1. Update UI state immediately (Lightweight)
-                foreach (var m in mediaFiles) m.IsPlaying = false;
-                file.IsPlaying = true;
+                SetPlayingItem(file);
                 selectedFile = file;
                 TrackTitleTextBlock.Text = file.Name;
 
@@ -1268,7 +1387,7 @@ namespace Adoracion
             // Reset UI and state immediately
             selectedFile = null;
             TrackTitleTextBlock.Text = string.Empty;
-            foreach (var m in mediaFiles) m.IsPlaying = false;
+            SetPlayingItem(null);
 
             // 1. Trigger the visual transition to idle (wallpaper/label) first.
             // This allows the overlay to fade in OVER the video before we stop the engine.
@@ -1374,8 +1493,9 @@ namespace Adoracion
 
             _splash?.UpdateStatus(TranslationHelper.GetString("Splash_Visualizer", "Preparing Visualizer..."));
             InitializeVisualizer();
-            visualizerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+            visualizerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
             visualizerTimer.Tick += VisualizerTimer_Tick;
+            StateChanged += Main_StateChanged;
             await Task.Yield();
 
             // Setup Timers and Playback Subscriptions
@@ -1457,6 +1577,7 @@ namespace Adoracion
             if (openWindow.ShowDialog() == true && openWindow.SelectedPlaylistItems != null)
             {
                 mediaFiles.Clear();
+                _playingItem = null;
                 foreach (var item in openWindow.SelectedPlaylistItems)
                 {
                     item.IsMissing = !FileService.Instance.FileExists(item.FilePath);

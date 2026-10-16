@@ -78,6 +78,7 @@ namespace Adoracion.Models
             get => _isPlaying;
             set
             {
+                if (_isPlaying == value) return;
                 _isPlaying = value;
                 OnPropertyChanged();
             }

@@ -20,6 +20,9 @@ namespace Adoracion.Services
 
         public static event Action<string>? SettingChanged;
 
+        private static readonly object CacheLock = new();
+        private static readonly Dictionary<string, string> Cache = new(StringComparer.Ordinal);
+
         static AppSettingsService()
         {
             using (var connection = new SqliteConnection(ConnectionString))
@@ -28,12 +31,62 @@ namespace Adoracion.Services
                 var command = connection.CreateCommand();
                 command.CommandText = "CREATE TABLE IF NOT EXISTS AppSettings (SettingKey TEXT PRIMARY KEY, SettingValue TEXT)";
                 command.ExecuteNonQuery();
+
+                command.CommandText = "SELECT SettingKey, SettingValue FROM AppSettings";
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string key = reader.GetString(0);
+                        string value = reader.IsDBNull(1) ? string.Empty : reader.GetString(1);
+                        Cache[key] = value;
+                    }
+                }
             }
+        }
+
+        /// <summary>
+        /// Updates the in-memory value and notifies listeners without writing to the database.
+        /// </summary>
+        public static void SetCachedSetting(string key, string value)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            if (!UpdateCache(key, value)) return;
+            SettingChanged?.Invoke(key);
         }
 
         public static void SetSetting(string key, string value)
         {
             if (string.IsNullOrEmpty(key)) return;
+            bool changed = UpdateCache(key, value);
+            PersistSetting(key, value);
+            if (changed)
+                SettingChanged?.Invoke(key);
+        }
+
+        public static string GetSetting(string key, string defaultValue = "")
+        {
+            if (string.IsNullOrEmpty(key)) return defaultValue;
+            lock (CacheLock)
+            {
+                return Cache.TryGetValue(key, out var value) ? value : defaultValue;
+            }
+        }
+
+        private static bool UpdateCache(string key, string? value)
+        {
+            string stored = value ?? string.Empty;
+            lock (CacheLock)
+            {
+                if (Cache.TryGetValue(key, out var existing) && existing == stored)
+                    return false;
+                Cache[key] = stored;
+                return true;
+            }
+        }
+
+        private static void PersistSetting(string key, string? value)
+        {
             using (var connection = new SqliteConnection(ConnectionString))
             {
                 connection.Open();
@@ -45,21 +98,6 @@ namespace Adoracion.Services
                 command.Parameters.AddWithValue("@key", key);
                 command.Parameters.AddWithValue("@value", value ?? (object)DBNull.Value);
                 command.ExecuteNonQuery();
-            }
-            SettingChanged?.Invoke(key);
-        }
-
-        public static string GetSetting(string key, string defaultValue = "")
-        {
-            if (string.IsNullOrEmpty(key)) return defaultValue;
-            using (var connection = new SqliteConnection(ConnectionString))
-            {
-                connection.Open();
-                var command = connection.CreateCommand();
-                command.CommandText = "SELECT SettingValue FROM AppSettings WHERE SettingKey = @key";
-                command.Parameters.AddWithValue("@key", key);
-                var result = command.ExecuteScalar();
-                return result != null && result != DBNull.Value ? result.ToString() : defaultValue;
             }
         }
     }

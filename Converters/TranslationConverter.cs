@@ -43,23 +43,27 @@ namespace Adoracion.Converters
     /// </summary>
     public class BoolToBrushConverter : IValueConverter
     {
+        private static readonly SolidColorBrush FavoriteBrush = Freeze(Colors.Yellow);
+        private static readonly SolidColorBrush FallbackBrush = Freeze(Colors.Gray);
+
+        private static SolidColorBrush Freeze(System.Windows.Media.Color color)
+        {
+            var brush = new SolidColorBrush(color);
+            brush.Freeze();
+            return brush;
+        }
+
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is bool isFavorite)
             {
                 if (isFavorite)
-                {
-                    // If favorite, highlight with Yellow
-                    return new SolidColorBrush(Colors.Yellow);
-                }
-                else
-                {
-                    // If not favorite, use the resource specified in the parameter (e.g., 'TextMuted')
-                    string resourceKey = parameter as string ?? "TextMuted";
-                    return System.Windows.Application.Current.TryFindResource(resourceKey) as SolidColorBrush ?? new SolidColorBrush(Colors.Gray);
-                }
+                    return FavoriteBrush;
+
+                string resourceKey = parameter as string ?? "TextMuted";
+                return System.Windows.Application.Current.TryFindResource(resourceKey) as SolidColorBrush ?? FallbackBrush;
             }
-            return new SolidColorBrush(Colors.Gray); // Default if value is not a boolean
+            return FallbackBrush;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

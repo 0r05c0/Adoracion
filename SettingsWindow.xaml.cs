@@ -46,10 +46,17 @@ namespace Adoracion
 
         private string _currentThemeName = "default";
         private string _currentThemeMode = "Dark";
+        private bool _suppressSliderPersist;
+        private readonly Dictionary<string, string> _dirtySliderSettings = new();
 
         public SettingsWindow()
         {
             InitializeComponent();
+            FontSizeSlider.LostMouseCapture += (_, _) => PersistSliderSetting(FontSizeSlider, AppearanceSettings.FontSizeKey);
+            TextAlphaSlider.LostMouseCapture += (_, _) => PersistSliderSetting(TextAlphaSlider, AppearanceSettings.TextAlphaKey);
+            ShadowBlurSlider.LostMouseCapture += (_, _) => PersistSliderSetting(ShadowBlurSlider, AppearanceSettings.ShadowBlurKey);
+            ShadowDepthSlider.LostMouseCapture += (_, _) => PersistSliderSetting(ShadowDepthSlider, AppearanceSettings.ShadowDepthKey);
+            ShadowOpacitySlider.LostMouseCapture += (_, _) => PersistSliderSetting(ShadowOpacitySlider, AppearanceSettings.ShadowOpacityKey);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -74,6 +81,7 @@ namespace Adoracion
             UpdatePositionVisuals(currentPos);
 
             OverlayTextBox.Text = AppearanceSettings.GetOverlayText();
+            _suppressSliderPersist = true;
             FontSizeSlider.Value = AppearanceSettings.GetFontSize();
             TextAlphaSlider.Value = AppearanceSettings.GetTextAlpha();
             UpdateColorVisuals(AppearanceSettings.GetTextColor());
@@ -82,6 +90,7 @@ namespace Adoracion
             ShadowBlurSlider.Value = AppearanceSettings.GetShadowBlur();
             ShadowDepthSlider.Value = AppearanceSettings.GetShadowDepth();
             ShadowOpacitySlider.Value = AppearanceSettings.GetShadowOpacity();
+            _suppressSliderPersist = false;
 
             LoadBackgroundImageSettings();
 
@@ -439,6 +448,7 @@ namespace Adoracion
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
+            FlushDirtySliderSettings();
             if (!_isActuallyClosing)
             {
                 ScreenService.Instance.DisplayConfigurationChanged -= OnDisplayConfigurationChanged;
@@ -720,26 +730,40 @@ namespace Adoracion
 
         private void ShadowBlurSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (this.IsLoaded)
-            {
-                AppSettingsService.SetSetting(AppearanceSettings.ShadowBlurKey, e.NewValue.ToString());
-            }
+            CacheSliderSetting(AppearanceSettings.ShadowBlurKey, e.NewValue);
         }
 
         private void ShadowDepthSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (this.IsLoaded)
-            {
-                AppSettingsService.SetSetting(AppearanceSettings.ShadowDepthKey, e.NewValue.ToString());
-            }
+            CacheSliderSetting(AppearanceSettings.ShadowDepthKey, e.NewValue);
         }
 
         private void ShadowOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (this.IsLoaded)
-            {
-                AppSettingsService.SetSetting(AppearanceSettings.ShadowOpacityKey, e.NewValue.ToString());
-            }
+            CacheSliderSetting(AppearanceSettings.ShadowOpacityKey, e.NewValue);
+        }
+
+        private void CacheSliderSetting(string key, double value)
+        {
+            if (!this.IsLoaded || _suppressSliderPersist) return;
+            string text = value.ToString();
+            _dirtySliderSettings[key] = text;
+            AppSettingsService.SetCachedSetting(key, text);
+        }
+
+        private void PersistSliderSetting(Slider slider, string key)
+        {
+            if (!_dirtySliderSettings.ContainsKey(key)) return;
+            AppSettingsService.SetSetting(key, slider.Value.ToString());
+            _dirtySliderSettings.Remove(key);
+        }
+
+        private void FlushDirtySliderSettings()
+        {
+            if (_dirtySliderSettings.Count == 0) return;
+            foreach (var pair in _dirtySliderSettings)
+                AppSettingsService.SetSetting(pair.Key, pair.Value);
+            _dirtySliderSettings.Clear();
         }
 
         private void UpdateShadowColorVisuals(string selectedColor)
@@ -773,18 +797,12 @@ namespace Adoracion
 
         private void TextAlphaSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (this.IsLoaded)
-            {
-                AppSettingsService.SetSetting(AppearanceSettings.TextAlphaKey, e.NewValue.ToString());
-            }
+            CacheSliderSetting(AppearanceSettings.TextAlphaKey, e.NewValue);
         }
 
         private void FontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (this.IsLoaded)
-            {
-                AppSettingsService.SetSetting(AppearanceSettings.FontSizeKey, e.NewValue.ToString());
-            }
+            CacheSliderSetting(AppearanceSettings.FontSizeKey, e.NewValue);
         }
 
         /// <summary>
@@ -847,7 +865,11 @@ namespace Adoracion
         {
             if (FileService.Instance.FileExists(imagePath)) // Use FileService
             {
-                BackgroundImagePreview.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(imagePath));
+                double previewWidth = BackgroundImagePreview.ActualWidth > 0
+                    ? BackgroundImagePreview.ActualWidth
+                    : BackgroundImagePreview.Width;
+                int decodeWidth = previewWidth > 0 ? (int)previewWidth : 480;
+                BackgroundImagePreview.Source = BitmapLoader.Load(imagePath, decodeWidth);
             }
             else
             {

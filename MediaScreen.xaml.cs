@@ -276,7 +276,12 @@ namespace Adoracion
             }
             else if (AppearanceSettings.IsAppearanceKey(key))
             {
-                Dispatcher.Invoke(RefreshUIText);
+                Dispatcher.Invoke(() =>
+                {
+                    RefreshUIText();
+                    if (key == AppearanceSettings.EnableBackgroundImageKey || key == AppearanceSettings.BackgroundImagePathKey)
+                        LoadAndApplyBackgroundImage(force: false);
+                });
             }
         }
 
@@ -500,7 +505,6 @@ namespace Adoracion
                 catch { MainText.Foreground = System.Windows.Media.Brushes.Black; }
 
                 ApplyOverlayPosition();
-                LoadAndApplyBackgroundImage(force: false); // Ensure background image is updated if text changes
             }
         }
 
@@ -712,11 +716,10 @@ namespace Adoracion
 
             try
             {
-                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
-                bitmap.BeginInit();
-                bitmap.UriSource = new Uri(filePath);
-                bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                bitmap.EndInit();
+                int decodeWidth = screenInfo != null && screenInfo.Bounds.Width > 0
+                    ? screenInfo.Bounds.Width
+                    : 1920;
+                var bitmap = BitmapLoader.Load(filePath, decodeWidth);
 
                 System.Windows.Controls.Image active = _activeImageIndex == 0 ? ImageA : ImageB;
                 System.Windows.Controls.Image next = _activeImageIndex == 0 ? ImageB : ImageA;

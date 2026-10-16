@@ -239,6 +239,7 @@ namespace Adoracion.Services
                     WHERE Playlists.Name = @name 
                     ORDER BY SortOrder";
                 command.Parameters.AddWithValue("@name", playlistName);
+                var favoritePaths = new HashSet<string>(FavoritesService.GetFavorites(), StringComparer.OrdinalIgnoreCase);
                 using (var reader = command.ExecuteReader())
                 {
                     int i = 1;
@@ -254,7 +255,7 @@ namespace Adoracion.Services
                             FilePath = path,
                             Duration = duration,
                             Index = i++,
-                            IsFavorite = FavoritesService.IsFavorite(path),
+                            IsFavorite = favoritePaths.Contains(path),
                             Type = type
                         });
                     }

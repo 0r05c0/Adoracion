@@ -45,7 +45,7 @@ namespace Adoracion
         private MediaFile? _draggedData;
         private int _lastDropIndex = -1;
         private int _lastVolume = 100;
-        private List<System.Windows.Shapes.Rectangle> visualizerBars = new List<System.Windows.Shapes.Rectangle>();
+        private List<ScaleTransform> visualizerScales = new List<ScaleTransform>();
         private DispatcherTimer visualizerTimer;
         private CancellationTokenSource? _playCts;
         private CancellationTokenSource? _libraryRefreshCts;
@@ -216,19 +216,22 @@ namespace Adoracion
         {
             if (VisualizerContainer == null) return;
             VisualizerContainer.Children.Clear();
-            visualizerBars.Clear();
+            visualizerScales.Clear();
 
             for (int i = 0; i < 15; i++)
             {
+                var scale = new ScaleTransform(1, 5.0 / 35.0);
                 var bar = new System.Windows.Shapes.Rectangle
                 {
                     Width = 3,
-                    Height = 5,
+                    Height = 35,
                     Margin = new Thickness(1),
-                    VerticalAlignment = VerticalAlignment.Center
+                    VerticalAlignment = VerticalAlignment.Center,
+                    RenderTransform = scale,
+                    RenderTransformOrigin = new System.Windows.Point(0.5, 0.5)
                 };
                 bar.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "Primary");
-                visualizerBars.Add(bar);
+                visualizerScales.Add(scale);
                 VisualizerContainer.Children.Add(bar);
             }
         }
@@ -256,17 +259,24 @@ namespace Adoracion
 
         private void VisualizerTimer_Tick(object? sender, EventArgs e)
         {
-            if (!isPlaying) return;
-            foreach (var bar in visualizerBars)
-            {
-                bar.Height = rand.Next(5, 35);
-            }
+            if (!isPlaying || WindowState == WindowState.Minimized) return;
+            foreach (ScaleTransform scale in visualizerScales)
+                scale.ScaleY = rand.Next(5, 35) / 35.0;
         }
 
         private void ResetVisualizer()
         {
-            foreach (var bar in visualizerBars)
-                bar.Height = 5;
+            foreach (ScaleTransform scale in visualizerScales)
+                scale.ScaleY = 5.0 / 35.0;
+        }
+
+        private void Main_StateChanged(object? sender, EventArgs e)
+        {
+            if (visualizerTimer == null) return;
+            if (WindowState == WindowState.Minimized)
+                visualizerTimer.Stop();
+            else if (isPlaying)
+                visualizerTimer.Start();
         }
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
@@ -1367,8 +1377,9 @@ namespace Adoracion
 
             _splash?.UpdateStatus(TranslationHelper.GetString("Splash_Visualizer", "Preparing Visualizer..."));
             InitializeVisualizer();
-            visualizerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+            visualizerTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
             visualizerTimer.Tick += VisualizerTimer_Tick;
+            StateChanged += Main_StateChanged;
             await Task.Yield();
 
             // Setup Timers and Playback Subscriptions

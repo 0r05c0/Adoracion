@@ -916,7 +916,8 @@ namespace Adoracion
             // Do not show controls if there is more than one monitor available
             if (ScreenService.Instance.IsMultipleScreens())
             {
-                ControlsOverlay.Visibility = Visibility.Hidden;
+                if (ControlsOverlay.Visibility != Visibility.Hidden)
+                    ControlsOverlay.Visibility = Visibility.Hidden;
                 return;
             }
 
@@ -925,19 +926,19 @@ namespace Adoracion
             _overlayTimer?.Start();
 
             // Only start the fade-in if the controls aren't already fully visible
-            if (ControlsOverlay.Visibility != Visibility.Visible || ControlsOverlay.Opacity < 1.0)
+            if (ControlsOverlay.Visibility == Visibility.Visible && ControlsOverlay.Opacity >= 1.0)
+                return;
+
+            ControlsOverlay.Visibility = Visibility.Visible;
+
+            var fadeInAnimation = new DoubleAnimation
             {
-                ControlsOverlay.Visibility = Visibility.Visible;
-                
-                var fadeInAnimation = new DoubleAnimation
-                {
-                    To = 1.0,
-                    Duration = TimeSpan.FromSeconds(0.4), // Smooth fade-in duration
-                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-                };
-                
-                ControlsOverlay.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
-            }
+                To = 1.0,
+                Duration = TimeSpan.FromSeconds(0.4), // Smooth fade-in duration
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+
+            ControlsOverlay.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
         }
 
         private void HideControls()

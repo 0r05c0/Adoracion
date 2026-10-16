@@ -179,6 +179,20 @@ namespace Adoracion.Services
             }
         }
 
+        public string[] GetFilesByPattern(string path, string searchPattern)
+        {
+            if (!DirectoryExists(path)) return Array.Empty<string>();
+            try
+            {
+                return Directory.GetFiles(path, searchPattern);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Instance.Log($"Error getting files in {path}: {ex.Message}");
+                return Array.Empty<string>();
+            }
+        }
+
         /// <summary>
         /// Returns media files for a directory, scanning the disk only on the first request.
         /// </summary>

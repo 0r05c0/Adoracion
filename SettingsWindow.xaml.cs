@@ -197,25 +197,22 @@ namespace Adoracion
             var themeFolders = FileService.Instance.GetDirectories(themesRoot);
             foreach (var folder in themeFolders)
             {
-                var xamlFiles = FileService.Instance.GetMediaFilesFromDirectory(folder); // Use FileService
-                foreach (var file in xamlFiles.Where(f => FileService.Instance.GetFileExtension(f).Equals(".xaml", StringComparison.OrdinalIgnoreCase)))
+                foreach (var file in FileService.Instance.GetFilesByPattern(folder, "*.xaml"))
                 {
                     try
                     {
-                        // Use string searching for metadata to avoid heavy ResourceDictionary instantiation
                         string content = FileService.Instance.ReadAllText(file);
-                        if (content.Contains("x:Key=\"ThemeName\"") && content.Contains("x:Key=\"ThemeMode\""))
+                        string? name = ReadThemeValue(content, "ThemeName");
+                        string? mode = ReadThemeValue(content, "ThemeMode");
+                        if (name == null || mode == null) continue;
+
+                        list.Add(new ThemeMetadata
                         {
-                            // We only load the dictionary if it appears to be a valid theme file // This is fine, it's a WPF specific action
-                            var dict = new ResourceDictionary { Source = new Uri(file, UriKind.Absolute) };
-                            list.Add(new ThemeMetadata
-                            {
-                                Name = dict["ThemeName"] as string ?? FileService.Instance.GetFileNameWithoutExtension(file),
-                                Author = dict["ThemeAuthor"] as string ?? "Unknown",
-                                Mode = dict["ThemeMode"] as string ?? "Dark",
-                                FilePath = file
-                            });
-                        }
+                            Name = name,
+                            Author = ReadThemeValue(content, "ThemeAuthor") ?? "Unknown",
+                            Mode = mode,
+                            FilePath = file
+                        });
                     }
                     catch (Exception ex)
                     {
@@ -224,6 +221,18 @@ namespace Adoracion
                 }
             }
             return list;
+        }
+
+        private static string? ReadThemeValue(string content, string key)
+        {
+            string marker = $"x:Key=\"{key}\">";
+            int start = content.IndexOf(marker, StringComparison.Ordinal);
+            if (start < 0) return null;
+            start += marker.Length;
+            int end = content.IndexOf('<', start);
+            if (end < 0) return null;
+            string value = content.Substring(start, end - start).Trim();
+            return string.IsNullOrEmpty(value) ? null : value;
         }
 
         private void UpdateCustomThemesDropdown(string mode)

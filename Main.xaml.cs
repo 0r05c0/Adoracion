@@ -9,6 +9,7 @@
  * 
  * See the LICENSE file distributed with this project for full terms.
  */
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -51,6 +52,8 @@ namespace Adoracion
         private DispatcherTimer visualizerTimer;
         private CancellationTokenSource? _playCts;
         private CancellationTokenSource? _libraryRefreshCts;
+        private readonly ConcurrentDictionary<string, string> _durationCache = new(StringComparer.OrdinalIgnoreCase);
+        private readonly SemaphoreSlim _durationParseSlots = new(2);
         private DispatcherTimer? _libraryFilterTimer;
         private string? _librarySourceKey;
         
@@ -828,38 +831,10 @@ namespace Adoracion
         {
             if (FolderExplorer.SelectedItem is string filePath) // filePath is already the full path
             {
-                if (string.IsNullOrEmpty(filePath) || !FileService.Instance.FileExists(filePath)) return;
-
-                if (!mediaFiles.Any(m => m.FilePath == filePath))
-                {
-                                MediaFile file = new MediaFile
-                                {
-                                    FilePath = filePath,
-                                    Name = FileService.Instance.GetFileName(filePath), // Get file name from full path
-                                    Duration = "", // Initialize as empty
-                                    Index = mediaFiles.Count + 1,
-                                    Type = MediaHelper.DetermineMediaType(filePath), // Set media type here
-                                    IsFavorite = FavoritesService.IsFavorite(filePath) // Set initial favorite status
-
-                                };
-                                        
-                                // If the file is an audio or video, get its duration. Use _mediaExtensionsWithDuration.
-                                if (MediaHelper.MediaWithDurationExtensions.Any(ext => filePath.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
-                                { // This block is duplicated in GetOrAddLibraryFileAsync, consider refactoring
-                                    var media = new Media(PlaybackService.Instance.LibVLC!, filePath, FromType.FromPath);
-                                    var result = await media.Parse(MediaParseOptions.ParseLocal);
-                                    using (media) 
-                                    {
-                                        if (result == MediaParsedStatus.Done && media.Duration > 0)
-                                        {
-                                            file.Duration = FormatTime(TimeSpan.FromMilliseconds(media.Duration));
-                                        }
-                                    }
-                                }
-                                mediaFiles.Add(file);
-                                // Add to playlist and select it, but do not start playback automatically.
-                                PlaylistView.SelectedItem = file;   
-                }         
+                bool alreadyAdded = mediaFiles.Any(m => m.FilePath == filePath);
+                MediaFile? file = await GetOrAddLibraryFileAsync(filePath);
+                if (file != null && !alreadyAdded)
+                    PlaylistView.SelectedItem = file;
             }
         }
 
@@ -937,14 +912,66 @@ namespace Adoracion
         /// Resolves a library filename and adds it to the playlist collection if it's not already there.
         /// Returns the MediaFile object for further actions (like playback).
         /// </summary>
-        private async Task<MediaFile?> GetOrAddLibraryFileAsync(string filePath) // Parameter is now full path
+        private void QueueDurationParse(MediaFile file)
+        {
+            string? filePath = file.FilePath;
+            if (string.IsNullOrEmpty(filePath)) return;
+            if (!MediaHelper.MediaWithDurationExtensions.Any(ext => filePath.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            if (_durationCache.TryGetValue(filePath, out string? cached))
+            {
+                file.Duration = cached;
+                return;
+            }
+
+            _ = ParseDurationAsync(file, filePath);
+        }
+
+        private async Task ParseDurationAsync(MediaFile file, string filePath)
+        {
+            await _durationParseSlots.WaitAsync();
+            try
+            {
+                if (_durationCache.TryGetValue(filePath, out string? cached))
+                {
+                    Dispatcher.Invoke(() => file.Duration = cached);
+                    return;
+                }
+
+                if (PlaybackService.Instance.LibVLC == null) return;
+
+                var media = new Media(PlaybackService.Instance.LibVLC, filePath, FromType.FromPath);
+                LoggingService.Instance.Log($"Parsing media for duration: {FileService.Instance.GetFileName(filePath)}");
+                MediaParsedStatus result = await media.Parse(MediaParseOptions.ParseLocal);
+                using (media)
+                {
+                    if (result == MediaParsedStatus.Done && media.Duration > 0)
+                    {
+                        string text = FormatTime(TimeSpan.FromMilliseconds(media.Duration));
+                        _durationCache[filePath] = text;
+                        Dispatcher.Invoke(() => file.Duration = text);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Instance.Log($"Error parsing media duration for {FileService.Instance.GetFileName(filePath)}: {ex.Message}");
+            }
+            finally
+            {
+                _durationParseSlots.Release();
+            }
+        }
+
+        private Task<MediaFile?> GetOrAddLibraryFileAsync(string filePath) // Parameter is now full path
         {
             LoggingService.Instance.Log($"GetOrAddLibraryFileAsync: Entry for {filePath}");
             // filePath is already the full path, no need to construct it.
             // The `fileName` variable is no longer needed here.
 
 
-            if (string.IsNullOrEmpty(filePath)) return null;
+            if (string.IsNullOrEmpty(filePath)) return Task.FromResult<MediaFile?>(null);
             
             if (!FileService.Instance.FileExists(filePath))
             {
@@ -952,7 +979,7 @@ namespace Adoracion
                 string message = TranslationHelper.GetString("Error_FileNotFound", "The file could not be found at the specified path:") + Environment.NewLine + filePath;
                 string title = TranslationHelper.GetString("Error_Title", "Error");
                 ModernMessageBox.Show(message, title, MessageBoxButton.OK, this);
-                return null;
+                return Task.FromResult<MediaFile?>(null);
             }
 
             var fileToPlay = mediaFiles.FirstOrDefault(m => m.FilePath == filePath);
@@ -968,31 +995,11 @@ namespace Adoracion
                     IsFavorite = FavoritesService.IsFavorite(filePath)
                 };
 
-                if (MediaHelper.MediaWithDurationExtensions.Any(ext => filePath.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
-                {
-                    try
-                    {
-                        var media = new Media(PlaybackService.Instance.LibVLC!, filePath, FromType.FromPath);
-                        LoggingService.Instance.Log($"Parsing media for duration: {FileService.Instance.GetFileName(filePath)}");
-                        var result = await media.Parse(MediaParseOptions.ParseLocal);
-
-                        using (media)
-                        {
-                            if (result == MediaParsedStatus.Done && media.Duration > 0)
-                            {
-                                fileToPlay.Duration = FormatTime(TimeSpan.FromMilliseconds(media.Duration));
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        LoggingService.Instance.Log($"Error parsing media duration for {FileService.Instance.GetFileName(filePath)}: {ex.Message}");
-                    }
-                }
                 mediaFiles.Add(fileToPlay);
+                QueueDurationParse(fileToPlay);
             }
             LoggingService.Instance.Log($"GetOrAddLibraryFileAsync: Exit for {FileService.Instance.GetFileName(filePath)}, returning {fileToPlay?.Name}");
-            return fileToPlay;
+            return Task.FromResult<MediaFile?>(fileToPlay);
         }        
 
         private void PlayMediaDirectly(MediaFile file)

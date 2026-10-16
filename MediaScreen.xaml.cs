@@ -276,7 +276,12 @@ namespace Adoracion
             }
             else if (AppearanceSettings.IsAppearanceKey(key))
             {
-                Dispatcher.Invoke(RefreshUIText);
+                Dispatcher.Invoke(() =>
+                {
+                    RefreshUIText();
+                    if (key == AppearanceSettings.EnableBackgroundImageKey || key == AppearanceSettings.BackgroundImagePathKey)
+                        LoadAndApplyBackgroundImage(force: false);
+                });
             }
         }
 
@@ -500,7 +505,6 @@ namespace Adoracion
                 catch { MainText.Foreground = System.Windows.Media.Brushes.Black; }
 
                 ApplyOverlayPosition();
-                LoadAndApplyBackgroundImage(force: false); // Ensure background image is updated if text changes
             }
         }
 

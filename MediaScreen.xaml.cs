@@ -134,7 +134,7 @@ namespace Adoracion
 
         private void OnGlobalPlaybackStateChanged(object? sender, EventArgs e)
         {
-            Dispatcher.Invoke(() => UpdatePlayPauseIcon(PlaybackService.Instance.IsPlaying));
+            Dispatcher.BeginInvoke(() => UpdatePlayPauseIcon(PlaybackService.Instance.IsPlaying));
         }
 
         /// <summary>

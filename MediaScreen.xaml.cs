@@ -134,7 +134,7 @@ namespace Adoracion
 
         private void OnGlobalPlaybackStateChanged(object? sender, EventArgs e)
         {
-            Dispatcher.Invoke(() => UpdatePlayPauseIcon(PlaybackService.Instance.IsPlaying));
+            Dispatcher.BeginInvoke(() => UpdatePlayPauseIcon(PlaybackService.Instance.IsPlaying));
         }
 
         /// <summary>
@@ -276,7 +276,12 @@ namespace Adoracion
             }
             else if (AppearanceSettings.IsAppearanceKey(key))
             {
-                Dispatcher.Invoke(RefreshUIText);
+                Dispatcher.Invoke(() =>
+                {
+                    RefreshUIText();
+                    if (key == AppearanceSettings.EnableBackgroundImageKey || key == AppearanceSettings.BackgroundImagePathKey)
+                        LoadAndApplyBackgroundImage(force: false);
+                });
             }
         }
 
@@ -500,7 +505,6 @@ namespace Adoracion
                 catch { MainText.Foreground = System.Windows.Media.Brushes.Black; }
 
                 ApplyOverlayPosition();
-                LoadAndApplyBackgroundImage(force: false); // Ensure background image is updated if text changes
             }
         }
 
@@ -712,11 +716,10 @@ namespace Adoracion
 
             try
             {
-                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
-                bitmap.BeginInit();
-                bitmap.UriSource = new Uri(filePath);
-                bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                bitmap.EndInit();
+                int decodeWidth = screenInfo != null && screenInfo.Bounds.Width > 0
+                    ? screenInfo.Bounds.Width
+                    : 1920;
+                var bitmap = BitmapLoader.Load(filePath, decodeWidth);
 
                 System.Windows.Controls.Image active = _activeImageIndex == 0 ? ImageA : ImageB;
                 System.Windows.Controls.Image next = _activeImageIndex == 0 ? ImageB : ImageA;
@@ -913,7 +916,8 @@ namespace Adoracion
             // Do not show controls if there is more than one monitor available
             if (ScreenService.Instance.IsMultipleScreens())
             {
-                ControlsOverlay.Visibility = Visibility.Hidden;
+                if (ControlsOverlay.Visibility != Visibility.Hidden)
+                    ControlsOverlay.Visibility = Visibility.Hidden;
                 return;
             }
 
@@ -922,19 +926,19 @@ namespace Adoracion
             _overlayTimer?.Start();
 
             // Only start the fade-in if the controls aren't already fully visible
-            if (ControlsOverlay.Visibility != Visibility.Visible || ControlsOverlay.Opacity < 1.0)
+            if (ControlsOverlay.Visibility == Visibility.Visible && ControlsOverlay.Opacity >= 1.0)
+                return;
+
+            ControlsOverlay.Visibility = Visibility.Visible;
+
+            var fadeInAnimation = new DoubleAnimation
             {
-                ControlsOverlay.Visibility = Visibility.Visible;
-                
-                var fadeInAnimation = new DoubleAnimation
-                {
-                    To = 1.0,
-                    Duration = TimeSpan.FromSeconds(0.4), // Smooth fade-in duration
-                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-                };
-                
-                ControlsOverlay.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
-            }
+                To = 1.0,
+                Duration = TimeSpan.FromSeconds(0.4), // Smooth fade-in duration
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+
+            ControlsOverlay.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
         }
 
         private void HideControls()

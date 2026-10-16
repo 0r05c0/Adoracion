@@ -10,6 +10,7 @@
  * See the LICENSE file distributed with this project for full terms.
  */
 using LibVLCSharp.Shared;
+using Adoracion.Helpers;
 
 namespace Adoracion.Services
 {
@@ -34,15 +35,29 @@ namespace Adoracion.Services
             {
                 Core.Initialize();
                 LoggingService.Instance.Log("LibVLC Core initialized successfully.");
-                _libVLC = new LibVLC(
+                var options = new List<string>
+                {
                     "--no-osd",
                     "--vout=direct3d11",
-                    "--avcodec-hw=any",
+                    MemoryProfile.IsLowRam ? "--avcodec-hw=d3d11va" : "--avcodec-hw=any",
                     "--avcodec-fast",
                     "--no-video-title-show",
                     "--video-title-timeout=0",
                     "--quiet"
-                );
+                };
+                if (MemoryProfile.IsLowRam)
+                {
+                    options.Add("--file-caching=300");
+                    options.Add("--disc-caching=300");
+                    options.Add("--avcodec-threads=1");
+                    options.Add("--drop-late-frames");
+                    options.Add("--skip-frames");
+                    options.Add("--avcodec-skiploopfilter=1");
+                    options.Add("--no-stats");
+                    options.Add("--no-lua");
+                    LoggingService.Instance.Log("LibVLC low-RAM options enabled.");
+                }
+                _libVLC = new LibVLC(options.ToArray());
                 _mediaPlayer = new MediaPlayer(_libVLC);
                 AttachEvents();
             }

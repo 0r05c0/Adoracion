@@ -25,6 +25,7 @@ namespace Adoracion
         private bool _isActuallyClosing = false;
         
         public List<MediaFile>? SelectedPlaylistItems { get; private set; }
+        private readonly HashSet<string> _existingPlaylistNames = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Constructor for Opening an existing playlist.
@@ -66,9 +67,22 @@ namespace Adoracion
             DeletePlaylistButton.Visibility = Visibility.Collapsed;
             
             RefreshUIText();
+            RememberPlaylistNames();
             Loaded += (s, e) => PlaylistNameInput.Focus();
             PlaylistNameInput.KeyDown += PlaylistNameInput_KeyDown;
             UpdateSaveButtonState();
+        }
+
+        private void RememberPlaylistNames()
+        {
+            _existingPlaylistNames.Clear();
+            foreach (string name in PlaylistService.GetPlaylistNames())
+                _existingPlaylistNames.Add(name);
+        }
+
+        private bool PlaylistNameTaken(string name)
+        {
+            return !string.IsNullOrEmpty(name) && _existingPlaylistNames.Contains(name);
         }
 
         private void SetupOpenMode()
@@ -182,25 +196,6 @@ namespace Adoracion
         private void PlaylistNameInput_TextChanged(object sender, TextChangedEventArgs e)
         {
             UpdateSaveButtonState();
-
-            if (_mode == WindowMode.Save)
-            {
-                string name = PlaylistNameInput.Text.Trim();
-                bool exists = !string.IsNullOrEmpty(name) && PlaylistService.PlaylistExists(name);
-
-                DuplicateNameErrorLabel.Visibility = exists ? Visibility.Visible : Visibility.Collapsed;
-
-                if (exists)
-                {
-                    PlaylistNameInput.BorderBrush = (System.Windows.Media.Brush)FindResource("DeleteButtonRed");
-                    PlaylistNameInput.BorderThickness = new Thickness(2);                    
-                }
-                else
-                {
-                    PlaylistNameInput.ClearValue(BorderBrushProperty);
-                    PlaylistNameInput.ClearValue(BorderThicknessProperty);
-                }
-            }
         }
 
         private void PlaylistNameInput_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -232,16 +227,34 @@ namespace Adoracion
                 string name = PlaylistNameInput.Text.Trim();
                 bool hasName = !string.IsNullOrWhiteSpace(name);
                 bool hasItems = ItemsPreviewList?.ItemsSource is IEnumerable<MediaFile> items && items.Any();
-                bool exists = hasName && PlaylistService.PlaylistExists(name);
+                bool exists = hasName && PlaylistNameTaken(name);
 
                 SaveButton.IsEnabled = hasName && hasItems && !exists;
                 DeletePlaylistButton.IsEnabled = false;
+                ShowDuplicateName(exists);
             }
             else
             {
                 bool hasSelection = PlaylistSelector.SelectedItem != null;
                 SaveButton.IsEnabled = hasSelection;
                 DeletePlaylistButton.IsEnabled = hasSelection;
+            }
+        }
+
+        private void ShowDuplicateName(bool exists)
+        {
+            if (DuplicateNameErrorLabel == null || PlaylistNameInput == null) return;
+
+            DuplicateNameErrorLabel.Visibility = exists ? Visibility.Visible : Visibility.Collapsed;
+            if (exists)
+            {
+                PlaylistNameInput.BorderBrush = (System.Windows.Media.Brush)FindResource("DeleteButtonRed");
+                PlaylistNameInput.BorderThickness = new Thickness(2);
+            }
+            else
+            {
+                PlaylistNameInput.ClearValue(BorderBrushProperty);
+                PlaylistNameInput.ClearValue(BorderThicknessProperty);
             }
         }
 

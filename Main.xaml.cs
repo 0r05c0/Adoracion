@@ -14,6 +14,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -49,6 +50,8 @@ namespace Adoracion
         private DispatcherTimer visualizerTimer;
         private CancellationTokenSource? _playCts;
         private CancellationTokenSource? _libraryRefreshCts;
+        private DispatcherTimer? _libraryFilterTimer;
+        private string? _librarySourceKey;
         
         private double _normalLeft;
         private double _normalTop;
@@ -108,6 +111,7 @@ namespace Adoracion
         {
             Dispatcher.BeginInvoke(new Action(() =>
             {
+                FileService.Instance.InvalidateMediaCache();
                 UpdateLibraryTabs();
                 RefreshLibraryList();
 
@@ -275,6 +279,7 @@ namespace Adoracion
             settingsWindow.ShowDialog();
             
             // Refresh tabs in case folders were changed
+            FileService.Instance.InvalidateMediaCache();
             UpdateLibraryTabs();
             RefreshLibraryList();
         }
@@ -604,7 +609,7 @@ namespace Adoracion
                 
         private void FolderFilterBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            RefreshLibraryList();
+            ScheduleLibraryFilter();
         }
 
         /// <summary>
@@ -621,7 +626,9 @@ namespace Adoracion
                     return;
                 }
 
-                string? firstResult = HymnFiles.FirstOrDefault();
+                CancelLibraryFilter();
+                ApplyLibraryFilter();
+                string? firstResult = CollectionViewSource.GetDefaultView(HymnFiles).Cast<string>().FirstOrDefault();
                 if (!string.IsNullOrEmpty(firstResult))
                 {
                     await GetOrAddLibraryFileAsync(firstResult);
@@ -647,65 +654,158 @@ namespace Adoracion
             }
         }
 
+        private void ScheduleLibraryFilter()
+        {
+            if (FolderFilterBox == null || HymnFiles == null) return;
+
+            if (_libraryFilterTimer == null)
+            {
+                _libraryFilterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+                _libraryFilterTimer.Tick += (_, _) =>
+                {
+                    _libraryFilterTimer.Stop();
+                    ApplyLibraryFilter();
+                };
+            }
+
+            _libraryFilterTimer.Stop();
+            _libraryFilterTimer.Start();
+        }
+
+        private void CancelLibraryFilter()
+        {
+            _libraryFilterTimer?.Stop();
+        }
+
+        private string CurrentLibraryFilter()
+        {
+            if (FolderFilterBox == null) return string.Empty;
+            string placeholder = TranslationHelper.GetString("Placeholder_SearchLibrary", "Search library...");
+            string text = FolderFilterBox.Text ?? string.Empty;
+            if (text == placeholder) return string.Empty;
+            return text.Trim();
+        }
+
+        private void ApplyLibraryFilter()
+        {
+            if (HymnFiles == null) return;
+
+            string filter = CurrentLibraryFilter();
+            var view = CollectionViewSource.GetDefaultView(HymnFiles);
+            if (string.IsNullOrEmpty(filter))
+            {
+                view.Filter = null;
+                return;
+            }
+
+            view.Filter = item =>
+                item is string path &&
+                FileService.Instance.GetFileName(path).Contains(filter, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool SamePaths(IList<string> current, IReadOnlyList<string> next)
+        {
+            if (current.Count != next.Count) return false;
+            for (int i = 0; i < current.Count; i++)
+            {
+                if (!string.Equals(current[i], next[i], StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+            return true;
+        }
+
         private async void RefreshLibraryList()
         {
+            CancelLibraryFilter();
             if (FolderFilterBox == null || HymnFiles == null || LibraryTabs == null || LibraryLoadingState == null) return;
+
+            int selectedIndex = LibraryTabs.SelectedIndex;
+            if (selectedIndex < 0)
+            {
+                LibraryLoadingState.Visibility = Visibility.Collapsed;
+                ApplyLibraryFilter();
+                return;
+            }
 
             // Cancel any existing refresh task
             _libraryRefreshCts?.Cancel();
             _libraryRefreshCts = new CancellationTokenSource();
             var token = _libraryRefreshCts.Token;
 
-            LibraryLoadingState.Visibility = Visibility.Visible;
-
-            string placeholder = TranslationHelper.GetString("Placeholder_SearchLibrary", "Search library...");
-            string filter = (FolderFilterBox.Text == placeholder) ? string.Empty : FolderFilterBox.Text.Trim().ToLower();
-
-            int selectedIndex = LibraryTabs.SelectedIndex;
             TabItem? selectedTab = LibraryTabs.SelectedItem as TabItem;
 
             // CRITICAL: Capture necessary data on the UI thread before starting the background task.
             // Accessing selectedTab.Tag or allHymnFiles inside Task.Run causes cross-thread exceptions.
             string? directoryPath = selectedTab?.Tag as string;
+            string sourceKey = selectedIndex switch
+            {
+                0 => "local",
+                1 => "favorites",
+                _ => "dir:" + (directoryPath ?? string.Empty)
+            };
+
+            // The local list only changes when hymns are reloaded. Typing filters the view in place.
+            if (selectedIndex == 0 && sourceKey == _librarySourceKey)
+            {
+                LibraryLoadingState.Visibility = Visibility.Collapsed;
+                ApplyLibraryFilter();
+                return;
+            }
+
+            bool scanningFolder = selectedIndex > 1
+                && !string.IsNullOrEmpty(directoryPath)
+                && !FileService.Instance.HasCachedMediaFiles(directoryPath, recursive: true);
+            LibraryLoadingState.Visibility = scanningFolder ? Visibility.Visible : Visibility.Collapsed;
+
             List<string> localFilesSnapshot = allHymnFiles.ToList();
-            List<string> favoritesSnapshot = FavoritesService.GetFavorites().ToList();
+            List<string>? favoritesSnapshot = selectedIndex == 1 ? FavoritesService.GetFavorites() : null;
 
             try
             {
-                var filteredList = await Task.Run(() =>
+                var sourceList = await Task.Run(() =>
                 {
                     if (token.IsCancellationRequested) return new List<string>();
 
-                    IEnumerable<string> source = Enumerable.Empty<string>();
+                    List<string> source;
                     if (selectedIndex == 0) // Local
                     {
-                        source = localFilesSnapshot; 
+                        source = localFilesSnapshot;
                     }
                     else if (selectedIndex == 1) // Favorites
                     {
-                        source = favoritesSnapshot;
+                        source = favoritesSnapshot ?? new List<string>();
                     }
                     else if (selectedIndex > 1 && !string.IsNullOrEmpty(directoryPath))
                     {
-                        source = FileService.Instance.GetMediaFilesFromDirectory(directoryPath, recursive: true);
+                        source = FileService.Instance.GetCachedMediaFiles(directoryPath, recursive: true);
+                    }
+                    else
+                    {
+                        source = new List<string>();
                     }
 
-                    var filtered = source.Where(f => string.IsNullOrEmpty(filter) || FileService.Instance.GetFileName(f).ToLower().Contains(filter)).ToList();
-                    filtered.Sort((s1, s2) => StrCmpLogicalW(FileService.Instance.GetFileName(s1), FileService.Instance.GetFileName(s2)));
-                    return filtered;
+                    source.Sort((s1, s2) => StrCmpLogicalW(FileService.Instance.GetFileName(s1), FileService.Instance.GetFileName(s2)));
+                    return source;
                 }, token);
 
                 if (token.IsCancellationRequested) return;
 
-                HymnFiles.Clear();
-                foreach (var filePath in filteredList)
-                    HymnFiles.Add(filePath);
+                if (sourceKey != _librarySourceKey || !SamePaths(HymnFiles, sourceList))
+                {
+                    HymnFiles.Clear();
+                    foreach (var filePath in sourceList)
+                        HymnFiles.Add(filePath);
+                    _librarySourceKey = sourceKey;
+                }
+
+                ApplyLibraryFilter();
             }
             catch (OperationCanceledException) { /* Task was superseded */ }
             catch (Exception ex)
             {
                 LoggingService.Instance.Log($"RefreshLibraryList failed: {ex.Message}");
                 HymnFiles.Clear();
+                _librarySourceKey = null;
             }
             finally
             {

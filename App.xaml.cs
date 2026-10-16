@@ -1,4 +1,4 @@
-﻿﻿/*
+﻿/*
  * This file is part of the Adoracion project (https://github.com/0r05c0/Adoracion).
  * Copyright (C) 2026 Matias Orosco 
  * 
@@ -130,8 +130,7 @@ namespace Adoracion
             var themeFolders = FileService.Instance.GetDirectories(themesRoot);
             foreach (var folder in themeFolders)
             {
-                var xamlFiles = FileService.Instance.GetMediaFilesFromDirectory(folder); // Use FileService
-                foreach (var file in xamlFiles.Where(f => FileService.Instance.GetFileExtension(f).Equals(".xaml", StringComparison.OrdinalIgnoreCase)))
+                foreach (var file in FileService.Instance.GetFilesByPattern(folder, "*.xaml"))
                 {
                     // Lightweight check: Avoid creating a ResourceDictionary object which parses the whole XAML tree.
                     // This prevents OutOfMemory exceptions during theme discovery.

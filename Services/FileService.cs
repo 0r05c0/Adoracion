@@ -174,6 +174,20 @@ namespace Adoracion.Services
             }
         }
 
+        public string[] GetFilesByPattern(string path, string searchPattern)
+        {
+            if (!DirectoryExists(path)) return Array.Empty<string>();
+            try
+            {
+                return Directory.GetFiles(path, searchPattern);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Instance.Log($"Error getting files in {path}: {ex.Message}");
+                return Array.Empty<string>();
+            }
+        }
+
         public int GetFileCountInDirectory(string path)
         {
             if (!DirectoryExists(path)) return 0;

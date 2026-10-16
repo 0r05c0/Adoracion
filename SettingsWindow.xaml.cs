@@ -847,7 +847,11 @@ namespace Adoracion
         {
             if (FileService.Instance.FileExists(imagePath)) // Use FileService
             {
-                BackgroundImagePreview.Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(imagePath));
+                double previewWidth = BackgroundImagePreview.ActualWidth > 0
+                    ? BackgroundImagePreview.ActualWidth
+                    : BackgroundImagePreview.Width;
+                int decodeWidth = previewWidth > 0 ? (int)previewWidth : 480;
+                BackgroundImagePreview.Source = BitmapLoader.Load(imagePath, decodeWidth);
             }
             else
             {

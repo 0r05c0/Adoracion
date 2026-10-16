@@ -712,11 +712,10 @@ namespace Adoracion
 
             try
             {
-                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
-                bitmap.BeginInit();
-                bitmap.UriSource = new Uri(filePath);
-                bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                bitmap.EndInit();
+                int decodeWidth = screenInfo != null && screenInfo.Bounds.Width > 0
+                    ? screenInfo.Bounds.Width
+                    : 1920;
+                var bitmap = BitmapLoader.Load(filePath, decodeWidth);
 
                 System.Windows.Controls.Image active = _activeImageIndex == 0 ? ImageA : ImageB;
                 System.Windows.Controls.Image next = _activeImageIndex == 0 ? ImageB : ImageA;

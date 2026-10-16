@@ -544,12 +544,11 @@ namespace Adoracion
                 LibraryLoadingState.Visibility = Visibility.Visible;
 
                 var fileList = await FileService.Instance.GetHymnFilesAsync();
-                
-                // Sort by file name after getting the full paths
-                var list = fileList.Select(f => FileService.Instance.GetFileName(f)).ToList();
-                list.Sort((s1, s2) => StrCmpLogicalW(s1, s2));
-                // Re-map to full paths for allHymnFiles
-                fileList = fileList.OrderBy(f => FileService.Instance.GetFileName(f), new NaturalStringComparer()).ToList();                Dispatcher.Invoke(() =>
+                fileList.Sort((a, b) => StrCmpLogicalW(
+                    FileService.Instance.GetFileName(a),
+                    FileService.Instance.GetFileName(b)));
+
+                Dispatcher.Invoke(() =>
                 {
                     HymnFiles.Clear();
                     allHymnFiles.Clear();

@@ -36,7 +36,18 @@ namespace Adoracion.Models
         public string? FilePath { get; set; }
         public string? Name { get; set; }
         public string? Artist { get; set; } // Added for playlist display
-        public string? Duration { get; set; } // Added for playlist display
+
+        private string? _duration;
+        public string? Duration
+        {
+            get => _duration;
+            set
+            {
+                if (_duration == value) return;
+                _duration = value;
+                OnPropertyChanged();
+            }
+        }
 
         private bool _isMissing;
         public bool IsMissing

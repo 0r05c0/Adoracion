@@ -33,11 +33,14 @@ namespace Adoracion.Services
         /// </summary>
         public event Action? DisplayConfigurationChanged;
 
+        private bool? _multipleScreens;
+
         private ScreenService() 
         {
             // Listen for global display setting changes
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged += (s, e) => 
             {
+                _multipleScreens = null;
                 DisplayConfigurationChanged?.Invoke();
             };
         }
@@ -69,7 +72,9 @@ namespace Adoracion.Services
 
         public bool IsMultipleScreens()
         {
-            return Screen.AllScreens.Length > 1;
+            if (_multipleScreens == null)
+                _multipleScreens = Screen.AllScreens.Length > 1;
+            return _multipleScreens.Value;
         }
 
         /// <summary>

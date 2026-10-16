@@ -53,7 +53,7 @@ namespace Adoracion
         private CancellationTokenSource? _playCts;
         private CancellationTokenSource? _libraryRefreshCts;
         private readonly ConcurrentDictionary<string, string> _durationCache = new(StringComparer.OrdinalIgnoreCase);
-        private readonly SemaphoreSlim _durationParseSlots = new(2);
+        private readonly SemaphoreSlim _durationParseSlots = new(MemoryProfile.IsLowRam ? 1 : 2);
         private DispatcherTimer? _libraryFilterTimer;
         private string? _librarySourceKey;
         
@@ -942,6 +942,9 @@ namespace Adoracion
                 if (PlaybackService.Instance.LibVLC == null) return;
 
                 var media = new Media(PlaybackService.Instance.LibVLC, filePath, FromType.FromPath);
+                media.AddOption(":no-video");
+                media.AddOption(":no-audio");
+                media.AddOption(":no-spu");
                 LoggingService.Instance.Log($"Parsing media for duration: {FileService.Instance.GetFileName(filePath)}");
                 MediaParsedStatus result = await media.Parse(MediaParseOptions.ParseLocal);
                 using (media)

@@ -18,7 +18,8 @@ namespace Adoracion.Helpers
     /// </summary>
     public static class BitmapLoader
     {
-        private const int MaxEntries = 4;
+        private const int LowRamDecodePixelWidth = 1920;
+        private static int MaxEntries => MemoryProfile.IsLowRam ? 2 : 4;
         private static readonly object Gate = new();
         private static readonly List<(string Key, BitmapImage Image)> Cache = new();
 
@@ -27,7 +28,9 @@ namespace Adoracion.Helpers
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentException("Image path is required.", nameof(path));
             if (decodePixelWidth <= 0)
-                decodePixelWidth = 1920;
+                decodePixelWidth = LowRamDecodePixelWidth;
+            if (MemoryProfile.IsLowRam && decodePixelWidth > LowRamDecodePixelWidth)
+                decodePixelWidth = LowRamDecodePixelWidth;
 
             string key = path + "|" + decodePixelWidth;
             lock (Gate)
@@ -47,6 +50,7 @@ namespace Adoracion.Helpers
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
             bitmap.UriSource = new Uri(path);
+            bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache | BitmapCreateOptions.IgnoreColorProfile;
             bitmap.CacheOption = BitmapCacheOption.OnLoad;
             bitmap.DecodePixelWidth = decodePixelWidth;
             bitmap.EndInit();

@@ -11,6 +11,7 @@
  */
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
@@ -184,7 +185,7 @@ namespace Adoracion
             }
         }
 
-        private async void HandleCrossfadeTransition(Action transitionAction)
+        private void HandleCrossfadeTransition(Action transitionAction)
         {
             if (isTransitioning) return;
             isTransitioning = true;
@@ -192,13 +193,61 @@ namespace Adoracion
             // Use the existing PlayMediaFile logic to coordinate the fade.
             // We fade out manually here, then trigger the next file which handles the fade-in.
             int currentVol = (int)VolumeSlider.Value;
-            _ = Task.Run(async () => {
-                for (int i = currentVol; i >= 0; i -= 10) {
-                    PlaybackService.Instance.SetVolume(i);
-                    await Task.Delay(50);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await RampVolumeAsync(currentVol, 0, TimeSpan.FromMilliseconds(500), CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    LoggingService.Instance.Log($"Crossfade fade-out failed: {ex.Message}");
                 }
                 Dispatcher.Invoke(() => transitionAction.Invoke());
             });
+        }
+
+        /// <summary>
+        /// Moves LibVLC volume in equal loudness steps. The player applies volume as linear gain,
+        /// so steps of 10 sound like a jump at the bottom of a fade-in and a crawl near the top.
+        /// </summary>
+        private static async Task RampVolumeAsync(int from, int to, TimeSpan duration, CancellationToken token)
+        {
+            from = Math.Clamp(from, 0, 100);
+            to = Math.Clamp(to, 0, 100);
+            if (duration <= TimeSpan.Zero || from == to)
+            {
+                PlaybackService.Instance.SetVolume(to);
+                return;
+            }
+
+            const double silenceDb = -60;
+            double startDb = from <= 0 ? silenceDb : 20.0 * Math.Log10(from / 100.0);
+            double endDb = to <= 0 ? silenceDb : 20.0 * Math.Log10(to / 100.0);
+
+            long start = Stopwatch.GetTimestamp();
+            int applied = int.MinValue;
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                double t = Stopwatch.GetElapsedTime(start).TotalMilliseconds / duration.TotalMilliseconds;
+                if (t > 1) t = 1;
+
+                double db = startDb + (endDb - startDb) * t;
+                int volume = t >= 1 || db <= silenceDb
+                    ? (t >= 1 ? to : 0)
+                    : (int)Math.Round(100.0 * Math.Pow(10, db / 20.0));
+                volume = Math.Clamp(volume, 0, 100);
+
+                if (volume != applied)
+                {
+                    PlaybackService.Instance.SetVolume(volume);
+                    applied = volume;
+                }
+
+                if (t >= 1) break;
+                await Task.Delay(15, token);
+            }
         }
 
         private async void FadeOutAndStop()
@@ -212,11 +261,7 @@ namespace Adoracion
             int originalVolume = (int)VolumeSlider.Value;
             // Fade out until 1 as suggested to keep the audio channel "warm" 
             // and avoid the "silent start" bug on next play
-            for (int i = originalVolume; i >= 1; i -= 10)
-            {
-                PlaybackService.Instance.SetVolume(i);
-                await Task.Delay(60);
-            }
+            await RampVolumeAsync(originalVolume, 1, TimeSpan.FromMilliseconds(500), CancellationToken.None);
             StopMedia(forceInstant: true);            
         }
 
@@ -1144,11 +1189,7 @@ namespace Adoracion
                 {
                     isTransitioning = true;
                     int originalVolume = (int)VolumeSlider.Value;
-                    for (int i = originalVolume; i >= 0; i -= 10)
-                    {
-                        PlaybackService.Instance.SetVolume(i);
-                        await Task.Delay(50);
-                    }
+                    await RampVolumeAsync(originalVolume, 0, TimeSpan.FromMilliseconds(500), CancellationToken.None);
                     PlaybackService.Instance.TogglePlayPause();
                     PlaybackService.Instance.SetVolume(0); // Ensure volume is 0 after fade-out to pause
                     isTransitioning = false;
@@ -1167,12 +1208,7 @@ namespace Adoracion
                     PlaybackService.Instance.SetVolume(0);
                     PlaybackService.Instance.TogglePlayPause();
                     await Task.Delay(100); // Small buffer for LibVLC to resume audio
-                    for (int i = 0; i <= targetVolume; i += 10)
-                    {
-                        PlaybackService.Instance.SetVolume(i);
-                        await Task.Delay(40);
-                    }
-                    PlaybackService.Instance.SetVolume(targetVolume);
+                    await RampVolumeAsync(0, targetVolume, TimeSpan.FromMilliseconds(500), CancellationToken.None);
                     isTransitioning = false;
                 }
                 else
@@ -1325,34 +1361,44 @@ namespace Adoracion
                 else
                 {
                     LoggingService.Instance.Log($"PlayMediaFile: Awaiting PlayAsync for video/audio: {file.FilePath}");
+                    int targetVolume = (int)VolumeSlider.Value;
+                    bool useCrossfade = CrossfadeToggle?.IsChecked == true;
+                    if (useCrossfade)
+                        PlaybackService.Instance.SetVolume(0);
+
                     await PlaybackService.Instance.PlayAsync(file.FilePath, cts.Token);
 
                     // 6. Handle volume. We offload this to a task that monitors for cancellation.
-                    int targetVolume = (int)VolumeSlider.Value;
-                    bool useCrossfade = CrossfadeToggle?.IsChecked == true;
-
-                    _ = Task.Run(async () => 
+                    _ = Task.Run(async () =>
                     {
-                        // Small delay to let the engine initialize before we touch volume
-                        await Task.Delay(300, cts.Token);
-                        if (cts.IsCancellationRequested) return;
-
-                        if (useCrossfade)
+                        try
                         {
-                            PlaybackService.Instance.SetVolume(0);
-                            for (int i = 0; i <= targetVolume; i += 10)
+                            if (useCrossfade)
                             {
-                                if (cts.IsCancellationRequested) break;
-                                PlaybackService.Instance.SetVolume(i);
-                                await Task.Delay(40);
+                                // A new track rebuilds the audio output, which comes back at full
+                                // level. Hold silence until that output exists, then rise evenly.
+                                var hold = Stopwatch.StartNew();
+                                while (hold.ElapsedMilliseconds < 200)
+                                {
+                                    cts.Token.ThrowIfCancellationRequested();
+                                    if (PlaybackService.Instance.Player?.Volume != 0)
+                                        PlaybackService.Instance.SetVolume(0);
+                                    await Task.Delay(15, cts.Token);
+                                }
+                                await RampVolumeAsync(0, targetVolume, TimeSpan.FromMilliseconds(500), cts.Token);
+                            }
+                            else
+                            {
+                                await Task.Delay(300, cts.Token);
+                            }
+
+                            if (!cts.IsCancellationRequested)
+                            {
+                                PlaybackService.Instance.SetVolume(targetVolume);
+                                isTransitioning = false;
                             }
                         }
-                        
-                        if (!cts.IsCancellationRequested)
-                        {
-                            PlaybackService.Instance.SetVolume(targetVolume);
-                            isTransitioning = false;
-                        }
+                        catch (OperationCanceledException) { }
                     }, cts.Token);
                 }
             }

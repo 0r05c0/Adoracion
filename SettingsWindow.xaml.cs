@@ -10,6 +10,7 @@
  * See the LICENSE file distributed with this project for full terms.
  */
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
@@ -120,9 +121,10 @@ namespace Adoracion
                 if (paths != null)
                 {
                     foreach (var path in paths)
-                    { // Use FileService
-                        int count = FileService.Instance.DirectoryExists(path) ? FileService.Instance.GetFileCountInDirectory(path) : 0;
-                        folders.Add(new MediaFolder { Path = path, Count = count });
+                    {
+                        var folder = new MediaFolder { Path = path };
+                        folders.Add(folder);
+                        QueueFolderCount(folder);
                     }
                 }
             }
@@ -133,6 +135,25 @@ namespace Adoracion
 
             FoldersListControl.ItemsSource = folders;
             UpdateFolderLimitUI();
+        }
+
+        private void QueueFolderCount(MediaFolder folder)
+        {
+            if (string.IsNullOrEmpty(folder.Path) || !FileService.Instance.DirectoryExists(folder.Path)) return;
+            string path = folder.Path;
+            _ = Task.Run(() => FileService.Instance.GetFileCountInDirectory(path))
+                .ContinueWith(t =>
+                {
+                    if (t.Status != TaskStatus.RanToCompletion) return;
+                    try
+                    {
+                        folder.Count = t.Result;
+                    }
+                    catch (Exception ex)
+                    {
+                        LoggingService.Instance.Log($"Error updating folder count for {path}: {ex.Message}");
+                    }
+                }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         private void InitializeLanguageDropdown()
@@ -625,7 +646,9 @@ namespace Adoracion
                 var folders = FoldersListControl.ItemsSource as ObservableCollection<MediaFolder>;
                 if (folders != null)
                 {
-                    folders.Add(new MediaFolder { Path = dialog.SelectedPath, Count = 0 });
+                    var added = new MediaFolder { Path = dialog.SelectedPath };
+                    folders.Add(added);
+                    QueueFolderCount(added);
                     SaveMediaFolders();
                     UpdateFolderLimitUI();
                 }
@@ -1125,9 +1148,22 @@ namespace Adoracion
     /// <summary>
     /// Represents a media folder entry.
     /// </summary>
-    public class MediaFolder
+    public class MediaFolder : INotifyPropertyChanged
     {
-        public string Path { get; set; }
-        public int Count { get; set; }
+        public string Path { get; set; } = string.Empty;
+
+        private int _count;
+        public int Count
+        {
+            get => _count;
+            set
+            {
+                if (_count == value) return;
+                _count = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Count)));
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

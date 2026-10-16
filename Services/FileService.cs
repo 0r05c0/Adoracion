@@ -234,7 +234,8 @@ namespace Adoracion.Services
             if (!DirectoryExists(path)) return 0;
             try
             {
-                return Directory.GetFiles(path).Length;
+                return Directory.EnumerateFiles(path)
+                    .Count(f => MediaHelper.AllAllowedExtensions.Contains(GetFileExtension(f).ToLower()));
             }
             catch (Exception ex)
             {
